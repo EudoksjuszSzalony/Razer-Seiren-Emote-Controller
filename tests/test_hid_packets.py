@@ -18,17 +18,19 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(packet[89], crc)
         self.assertEqual(packet[90], 0)
 
-    def test_eight_rows_plus_apply(self):
+    def test_four_native_rows_plus_apply(self):
         colors = [(x, y, 15) for y in range(8) for x in range(8)]
         packets = frame_reports(colors)
-        self.assertEqual(len(packets), 9)
-        for y, packet in enumerate(packets[:8]):
-            self.assertEqual(packet[6:9], bytes((29, 0x0F, 0x03)))
-            self.assertEqual(packet[9:14], bytes((0, 0, y, 0, 7)))
-            self.assertEqual(packet[14:17], bytes((0, y, 15)))
-            self.assertEqual(packet[35:38], bytes((7, y, 15)))
-        self.assertEqual(packets[8][6:9], bytes((12, 0x0F, 0x02)))
-        self.assertEqual(packets[8][11], 0x08)
+        self.assertEqual(len(packets), 5)
+        for y, packet in enumerate(packets[:4]):
+            self.assertEqual(packet[6:9], bytes((53, 0x0F, 0x03)))
+            self.assertEqual(packet[9:14], bytes((0, 0, y, 0, 15)))
+            self.assertEqual(packet[14:17], bytes((0, y * 2, 15)))
+            self.assertEqual(packet[35:38], bytes((7, y * 2, 15)))
+            self.assertEqual(packet[38:41], bytes((0, y * 2 + 1, 15)))
+            self.assertEqual(packet[59:62], bytes((7, y * 2 + 1, 15)))
+        self.assertEqual(packets[4][6:9], bytes((12, 0x0F, 0x02)))
+        self.assertEqual(packets[4][11], 0x08)
 
     def test_rejects_invalid_frames(self):
         with self.assertRaises(ValueError):
