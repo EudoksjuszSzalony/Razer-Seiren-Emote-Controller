@@ -83,7 +83,7 @@ Click any emote in the library to display it on your Seiren Emote.
 ![Orientation](docs/screenshots/orientation.png)
 
 ### Example output on microphone
-![Seiren Example](docs/screenshots/microphone-preview.jpg)
+![Seiren Example](docs/screenshots/microphone-preview.png)
 
 ---
 
