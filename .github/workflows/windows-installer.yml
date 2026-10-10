@@ -84,14 +84,32 @@ jobs:
           TAG="v$VERSION"
           SETUP="release/SeirenEmoteController_Setup_$VERSION.exe"
           test -s "$SETUP" || { echo "::error::Missing installer $SETUP"; exit 1; }
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; not overwriting it."
-            exit 0
-          fi
+          ALIAS_NAME="SeirenEmoteController_Setup_Latest.exe"
+          ALIAS="release/$ALIAS_NAME"
           NOTES="RELEASE_NOTES_$TAG.md"
-          if [[ -f "$NOTES" ]]; then
-            gh release create "$TAG" "$SETUP" --title "Seiren Emote Controller $TAG" --target "$GITHUB_SHA" --notes-file "$NOTES" --latest
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Keeping its original installer unchanged."
+            # A stable filename on *every* release makes the README's /latest/download
+            # URL valid even when future installers have versioned file names.
+            if gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fxq "$ALIAS_NAME"; then
+              echo "Stable download asset already exists; nothing to replace."
+            else
+              mkdir -p existing-release
+              gh release download "$TAG" --pattern "$(basename "$SETUP")" --dir existing-release
+              cp "existing-release/$(basename "$SETUP")" "$ALIAS"
+              test -s "$ALIAS" || { echo "::error::Failed to prepare stable installer alias."; exit 1; }
+              gh release upload "$TAG" "$ALIAS"
+              echo "Added stable installer alias to release $TAG."
+            fi
           else
-            gh release create "$TAG" "$SETUP" --title "Seiren Emote Controller $TAG" --target "$GITHUB_SHA" --generate-notes --latest
+            # For a new version publish BOTH names, containing the exact same EXE.
+            # Never redirect to a filename tied to an older version.
+            cp "$SETUP" "$ALIAS"
+            if [[ -f "$NOTES" ]]; then
+              gh release create "$TAG" "$SETUP" "$ALIAS" --title "Seiren Emote Controller $TAG" --target "$GITHUB_SHA" --notes-file "$NOTES" --latest
+            else
+              gh release create "$TAG" "$SETUP" "$ALIAS" --title "Seiren Emote Controller $TAG" --target "$GITHUB_SHA" --generate-notes --latest
+            fi
           fi
           gh release view "$TAG" --json url,isDraft,isPrerelease,assets
