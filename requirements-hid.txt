@@ -1,0 +1,4 @@
+# Direct HID USB backend
+hidapi>=0.14,<1
+# Local Razer emote cache importer + animation playback
+Pillow>=10,<13
