@@ -1,14 +1,22 @@
 # Changelog
 
-## 0.3.8 — installer preview
+## v1.0.0 — 2026-10-10 (first official stable release)
+
+- Standalone Windows 10/11 x64 application with Direct USB HID support for the 8×8 Seiren Emote LED matrix; no OpenRGB server or separate Python installation is required.
+- Designed to coexist with Synapse 3 and custom Chroma Studio effects on other devices.
+- GIF/PNG playback with speed, brightness, and user-selected orientation; default vertical flip based on verified hardware mapping.
+- Automatically resume the last selected emote and preferences on standard GUI and tray-only startup.
+- Windows installer, Start Menu shortcut, autostart at login, tray menu, optional display clear on exit, and uninstall support.
+- Import compatible emotes from the user's local Streamer Companion cache. Razer artwork is not redistributed.
+- Free/open-source under GPL-3.0; installer unsigned and may trigger SmartScreen.
+
+## v0.3.8 — installer preview
 
 - Always restore the last saved emote after startup, including standard GUI launches and tray-only autostart. Previously this only happened with `--tray`.
 - Startup no longer hides the only window when the system tray cannot initialize.
 - Windows one-directory PyInstaller packaging, generated project icon and Inno Setup 6 installer with Start Menu entries, optional per-user autostart and clean uninstall.
 - GitHub Actions Windows installer pipeline produces an unsigned setup EXE as a workflow artifact. No original Razer GIFs bundled.
 - Preserve all v0.3.7 improvements: 4×16 HID, flip_v default, Apply playback resume, persistent brightness, speed, animation filter, and optional clear-on-exit.
-
-# Changelog
 
 ## v0.3.7 Preview (2026-10-10)
 

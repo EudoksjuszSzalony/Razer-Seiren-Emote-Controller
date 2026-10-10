@@ -54,3 +54,44 @@ jobs:
           path: release/SeirenEmoteController_Setup_*.exe
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    name: Publish official release
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+      - name: Download validated Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: SeirenEmoteController-Setup-Windows-x64
+          path: release
+      - name: Publish tagged GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '\r\n' < VERSION)"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::VERSION must be in major.minor.patch format."
+            exit 1
+          fi
+          TAG="v$VERSION"
+          SETUP="release/SeirenEmoteController_Setup_$VERSION.exe"
+          test -s "$SETUP" || { echo "::error::Missing installer $SETUP"; exit 1; }
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; not overwriting it."
+            exit 0
+          fi
+          NOTES="RELEASE_NOTES_$TAG.md"
+          if [[ -f "$NOTES" ]]; then
+            gh release create "$TAG" "$SETUP" --title "Seiren Emote Controller $TAG" --target "$GITHUB_SHA" --notes-file "$NOTES" --latest
+          else
+            gh release create "$TAG" "$SETUP" --title "Seiren Emote Controller $TAG" --target "$GITHUB_SHA" --generate-notes --latest
+          fi
+          gh release view "$TAG" --json url,isDraft,isPrerelease,assets

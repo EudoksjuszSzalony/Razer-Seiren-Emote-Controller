@@ -1,16 +1,28 @@
-# Razer Seiren Emote Controller — v0.3.8 — Installer Preview
+# Razer Seiren Emote Controller — v1.0.0
 
 A small **Windows 10/11** application that plays PNG and animated GIF emotes on the **Razer Seiren Emote's 8×8 RGB matrix** while your custom **Synapse 3 / Chroma Studio** profiles continue controlling other devices.
 
-**Direct USB HID is the default backend. OpenRGB is not required.** Direct HID and frame geometry have been tested on real Seiren Emote hardware. The new Windows installer must be smoke-tested before a stable public release.
+**Direct USB HID is the default backend; OpenRGB is not required.** The hardware controller and packaged Windows installer have been tested with a Seiren Emote on Windows 11.
 
-## Quick start
+## Installation (Windows 10/11 x64)
 
-1. Close **Streamer Companion** and **OpenRGB** if they are controlling the microphone. Synapse 3 may continue running.
-2. Install Python 3.11+ and run: `py -m pip install -r requirements.txt`.
-3. Start the application: `py seiren_emote_gui.py`.
-4. Click **Import Emotes** to import GIFs from your *own local Streamer Companion cache* (if present). Or place your own GIF/PNG files in `%LOCALAPPDATA%\SeirenEmoteController\Emotes`.
-5. Select an emote; the microphone shows the animation immediately. The selected emote is **automatically resumed on the next launch**, whether you open the GUI or start in tray mode.
+1. Download **`SeirenEmoteController_Setup_1.0.0.exe`** from the [v1.0.0 GitHub Release](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/tag/v1.0.0).
+2. Quit OpenRGB and Streamer Companion if either controls the microphone; Synapse 3 can stay open for other devices.
+3. Run the installer. Optionally enable **Start automatically when I sign in**; startup launches in the system tray and resumes the last emote.
+4. Launch **Seiren Emote Controller** from the Windows Start Menu.
+5. Click **Import Emotes** to import GIFs from the local Streamer Companion cache, when available, or put your own GIF/PNG files into `%LOCALAPPDATA%\SeirenEmoteController\Emotes`.
+6. Select an emote. It automatically resumes with saved brightness, speed, and orientation on subsequent launches.
+
+> The installer is **not digitally signed**, so Windows SmartScreen may warn about an unfamiliar app. Verify the download came from this project's Releases page. Razer's copyrighted GIFs are **not** bundled.
+
+## Run from source (developers)
+
+Python 3.11+:
+
+```powershell
+py -m pip install -r requirements.txt
+py seiren_emote_gui.py
+```
 
 ## Display orientation (simple)
 
@@ -38,7 +50,7 @@ To build on Windows with **Python 3.12** and **Inno Setup 6** installed:
 powershell -ExecutionPolicy Bypass -File .\build_windows.ps1
 ```
 
-The generated installer appears in `release/SeirenEmoteController_Setup_0.3.8.exe`. The `.github/workflows/windows-installer.yml` GitHub Actions workflow can build it on a hosted Windows runner and publish it as a downloadable workflow artifact; a preview artifact is **not** a stable signed release.
+The generated installer appears in `release/SeirenEmoteController_Setup_1.0.0.exe`. The `.github/workflows/windows-installer.yml` GitHub Actions workflow builds it on Windows and attaches the installer to the matching GitHub Release when this version is merged to `main`.
 
 **Windows SmartScreen:** unsigned community installers can trigger a warning. Download only from this repository and inspect the code; the installer is not code-signed.
 
@@ -52,7 +64,7 @@ The card grid now calculates columns using the **actual card width** (roughly 10
 
 The USB protocol uses VID `1532`, PID `0F1B`, HID Usage Page `000C`, Usage `0001`. The visible 8×8 image (64 pixels) is transmitted as four **native 16-pixel feature reports**, followed by a frame-apply report. This fixed alternating dark rows in the early driver.
 
-Run `py -m unittest discover -s tests -v` for packet, orientation, importer and preferences checks. The GUI and real microphone still require Windows validation for this version.
+Run `py -m unittest discover -s tests -v` for packet, orientation, importer and preferences checks. The standalone installer and Direct HID communication have been tested on Windows 11 with a Seiren Emote.
 
 ## License and third-party assets
 
