@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+build/
+dist/
+*.spec
+*.log
+config.json
+Emotes/
+Emotes_Original_8x8/
+RzAppEngine/
+*_private*
+
+# Python / Windows release output
+release/
+build_assets/
+*.exe
+*.msi
+# Prevent accidentally committing copyrighted/cached vendor assets.
+*.gif
+*.GIF
+*.webp
+*.7z
+*.zip
+Razer*/
