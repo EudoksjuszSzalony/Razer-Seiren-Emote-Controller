@@ -19,7 +19,8 @@ USAGE_PAGE = 0x000C
 USAGE = 0x0001
 TRANSACTION_ID = 0x3F
 REPORT_LEN = 91
-MATRIX_SIZE = 8
+HID_ROWS = 4
+HID_COLUMNS = 16  # 8x8 visible LED matrix is addressed as 4x16 by firmware
 
 
 def _hid():
@@ -64,7 +65,7 @@ def make_report(command_class: int, command_id: int, arguments: bytes) -> bytes:
 
 
 def frame_reports(colors: Sequence[tuple[int, int, int]]) -> list[bytes]:
-    """Return the 8 row packets and one 'show custom frame' packet.
+    """Return four 16-pixel row packets and one 'show custom frame' packet.
 
     Colors are 64 RGB triples in row-major order. Orientation and brightness
     conversion belong to the GUI/image decoder, not this transport layer.
@@ -75,10 +76,12 @@ def frame_reports(colors: Sequence[tuple[int, int, int]]) -> list[bytes]:
         if len(color) != 3 or any(not isinstance(c, int) or not 0 <= c <= 255 for c in color):
             raise ValueError("Every pixel must contain three integer RGB channels in 0..255")
     reports = []
-    for y in range(MATRIX_SIZE):
-        rgb = bytes(channel for pixel in colors[y * 8:(y + 1) * 8] for channel in pixel)
-        # Extended matrix arguments: [0,0,row,first_column,last_column,8*RGB]
-        arguments = bytes((0, 0, y, 0, 7)) + rgb
+    for y in range(HID_ROWS):
+        start = y * HID_COLUMNS
+        rgb = bytes(channel for pixel in colors[start:start + HID_COLUMNS] for channel in pixel)
+        # Extended matrix arguments: [0,0,row,first_column,last_column,16*RGB]
+        # One HID row contains two adjacent logical 8-pixel rows.
+        arguments = bytes((0, 0, y, 0, HID_COLUMNS - 1)) + rgb
         reports.append(make_report(0x0F, 0x03, arguments))
     # Extended matrix custom mode, effect 0x08.
     reports.append(make_report(0x0F, 0x02, bytes((0, 0, 0x08)) + bytes(9)))
