@@ -1,0 +1,56 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    paths:
+      - '**.py'
+      - '**.txt'
+      - 'installer/**'
+      - 'tools/**'
+      - 'build_windows.ps1'
+      - '.github/workflows/windows-installer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Windows x64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: requirements-openrgb.txt
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (!(Test-Path '${{ runner.temp }}\inno-ready.txt')) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Build app and installer
+        shell: pwsh
+        run: .\build_windows.ps1
+      - name: Check installer output
+        shell: pwsh
+        run: |
+          $file = Get-ChildItem release\SeirenEmoteController_Setup_*.exe | Select-Object -First 1
+          if (!$file -or $file.Length -lt 1000000) { throw 'Missing or unexpectedly small installer output' }
+          Write-Host "Installer: $($file.Name) ($($file.Length) bytes)"
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SeirenEmoteController-Setup-Windows-x64
+          path: release/SeirenEmoteController_Setup_*.exe
+          if-no-files-found: error
+          retention-days: 30
