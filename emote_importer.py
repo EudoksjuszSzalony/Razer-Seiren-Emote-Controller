@@ -91,7 +91,9 @@ def import_from_cache(cache_root: Path | None = None, destination: Path = EMOTES
         name = known.get(hashlib.sha256(gif).hexdigest(), f'Emote_{i:03d}')
         name = re.sub(r'[^a-zA-Z0-9_+\-]', '_', name)[:60]
         target = destination / f'{i:03d}_{name}.gif'
-        with tempfile.NamedTemporaryFile(dir=destination, delete=False, suffix='.gif') as temp:
+        if target.is_file() and target.read_bytes() == gif:
+            continue  # Avoid rewriting unchanged cache files.
+        with tempfile.NamedTemporaryFile(dir=destination, delete=False, suffix='.tmp') as temp:
             temp.write(gif)
             temp_path = Path(temp.name)
         temp_path.replace(target)

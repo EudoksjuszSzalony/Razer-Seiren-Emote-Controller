@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seiren Emote Controller v1.0.1 GUI + direct USB HID + Windows tray.
+"""Seiren Emote Controller v1.1.0 GUI + direct USB HID + Windows tray.
 
 Copyright in program code: GPL-3.0. Original Razer images are not bundled.
 """
@@ -7,6 +7,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
+import sys
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 import queue
@@ -17,7 +22,9 @@ from PIL import Image, ImageTk
 
 import seiren_emote_bridge as bridge
 from emote_importer import APP_DIR, EMOTES_DIR, import_from_cache
-from windows_integration import Tray, autostart_enabled, set_autostart
+from media_library import import_user_media, media_signature
+from windows_integration import (Tray, autostart_enabled, set_autostart,
+                                 configure_windows_app_identity, apply_window_icon)
 from pixel_mapping import (DEFAULT_PROBE_POINTS, EXTRA_PROBE_POINTS, infer_orientation)
 
 BG = '#181b1e'
@@ -41,14 +48,24 @@ def diagonal_arrow_image() -> Image.Image:
 
 class App:
     def __init__(self, *, tray_only: bool = False):
+        configure_windows_app_identity()
         self.root = tk.Tk()
-        self.root.title('Seiren Emote Controller v1.0.1')
+        apply_window_icon(self.root)
+        self.root.title('Seiren Emote Controller v1.1.0')
         self.root.geometry('1110x790')
         self.root.minsize(760, 540)
         self.root.configure(bg=BG)
         self.config = bridge.read_config()
         EMOTES_DIR.mkdir(parents=True, exist_ok=True)
         self.files = self._all_emote_files()
+        self._media_snapshot = media_signature(EMOTES_DIR)
+        self._import_busy = False
+        self._usb_probe_inflight = False
+        self._usb_connect_inflight = False
+        self._usb_generation = 0
+        self._reconnect_target = None
+        self._next_usb_connect = 0.0
+        self.developer_tools_visible = False
         self.client = self.device = self.rgb_cls = None
         self.scheduled = self.save_after = self.resize_after = None
         self.current_frames, self.current_file = [], None
@@ -56,7 +73,8 @@ class App:
         self.image_refs = []
         self.grid_columns = 0
         self.queue = queue.Queue()
-        self.tray = Tray(self.queue, clear_exit_enabled=lambda: bool(self.config.get('clear_on_exit', False)))
+        self.tray = Tray(self.queue, clear_exit_enabled=lambda: bool(self.config.get('clear_on_exit', False)),
+                         animated_enabled=lambda: bool(self.config.get('animated_tray', False)))
         self.search = tk.StringVar()
         self.only_animated = tk.BooleanVar(value=self.config.get('animated_only', False))
         self.brightness = tk.DoubleVar(value=self.config['brightness'])
@@ -65,9 +83,11 @@ class App:
         self.brightness_text = tk.StringVar()
         self.speed_text = tk.StringVar()
         self.status = tk.StringVar(value='Ready. Select an emote or import your local library.')
+        self.connection_text = tk.StringVar(value='● Disconnected')
         self.preview_photo = None
         self._build_ui()
         self._update_controls()
+        self._update_connection_indicator()
         self.root.protocol('WM_DELETE_WINDOW', self.hide)
         self.render_grid()
         tray_ready = True
@@ -80,6 +100,8 @@ class App:
             self.root.protocol('WM_DELETE_WINDOW', self.exit)
         self.closing = False
         self.queue_after = self.root.after(100, self._check_queue)
+        self.media_scan_after = self.root.after(5000, self._poll_media_directory)
+        self.usb_watch_after = self.root.after(1200, self._poll_usb_presence)
         if tray_only and tray_ready:
             self.root.withdraw()
         else:
@@ -87,6 +109,7 @@ class App:
         # Restore from the same saved profile regardless of how the app launches.
         # Defer until widgets, the tray, and the Tk event loop are initialized.
         self.root.after(600, self._restore_last_emote)
+        self.root.after(1200, self._maybe_first_run_import)
 
     @staticmethod
     def _all_emote_files():
@@ -98,15 +121,37 @@ class App:
         top.pack(fill='x')
         tk.Label(top, text='SEIREN EMOTE CONTROLLER', fg=GREEN, bg=BG,
                  font=('Segoe UI', 16, 'bold')).pack(side='left')
-        tk.Button(top, text='Connect', command=self.connect, bg='#336b24', fg='white', padx=12).pack(side='right', padx=(7, 0))
-        backend_box = ttk.Combobox(top, textvariable=self.backend, values=['hid', 'openrgb'], state='readonly', width=8)
-        backend_box.pack(side='right', padx=(6, 0))
+        self.developer_button = tk.Button(top, text='Developer Tools ▾',
+                                         command=self._toggle_developer_tools,
+                                         bg=SURFACE, fg=FG)
+        self.developer_button.pack(side='right', padx=(7, 0))
+        # Packed only on demand; avoids exposing diagnostic actions to new users.
+        self.developer_controls = tk.Frame(top, bg=BG)
+        tk.Button(self.developer_controls, text='Connect', command=self.connect,
+                  bg='#336b24', fg='white', padx=12).pack(side='left', padx=(7, 0))
+        tk.Label(self.developer_controls, text='Backend', bg=BG, fg=FG).pack(side='left', padx=(8, 3))
+        backend_box = ttk.Combobox(self.developer_controls, textvariable=self.backend,
+                                   values=['hid', 'openrgb'], state='readonly', width=8)
+        backend_box.pack(side='left')
         backend_box.bind('<<ComboboxSelected>>', self._backend_changed)
-        tk.Label(top, text='Backend', bg=BG, fg=FG).pack(side='right', padx=(6, 0))
-        tk.Button(top, text='Import Emotes', command=self.import_emotes,
-                  bg=SURFACE, fg=FG).pack(side='right', padx=(5, 0))
+        tk.Button(self.developer_controls, text='Stop', command=self.stop,
+                  bg='#843a3a', fg=FG).pack(side='left', padx=(7, 0))
         tk.Button(top, text='Display Orientation', command=self.calibrate, bg=SURFACE,
                   fg=FG).pack(side='right', padx=(5, 0))
+        self.connection_label = tk.Label(top, textvariable=self.connection_text,
+                                         fg='#d9ae65', bg=BG, font=('Segoe UI', 10, 'bold'))
+        self.connection_label.pack(side='right', padx=(5, 8))
+
+        library_actions = tk.Frame(self.root, bg=BG, padx=14, pady=5)
+        library_actions.pack(fill='x')
+        tk.Button(library_actions, text='Add PNG/GIF', command=self.add_media,
+                  bg='#336b24', fg='white').pack(side='left', padx=(0, 7))
+        tk.Button(library_actions, text='Open media folder', command=self.open_media_folder,
+                  bg=SURFACE, fg=FG).pack(side='left', padx=(0, 7))
+        tk.Button(library_actions, text='Import Streamer Companion', command=self.import_emotes,
+                  bg=SURFACE, fg=FG).pack(side='left', padx=(0, 7))
+        tk.Button(library_actions, text='Refresh icons', command=self.refresh_library,
+                  bg=SURFACE, fg=FG).pack(side='left')
 
         controls = tk.Frame(self.root, bg=BG, padx=14, pady=5)
         controls.pack(fill='x')
@@ -128,7 +173,6 @@ class App:
                  bg=BG, fg=FG, highlightthickness=0, showvalue=False).pack(side='left')
         tk.Label(controls, textvariable=self.speed_text, fg=GREEN, bg=BG,
                  width=6, anchor='w').pack(side='left')
-        tk.Button(controls, text='Stop', command=self.stop, bg='#843a3a', fg=FG).pack(side='right')
 
         self.count_label = tk.Label(self.root, text='', anchor='w', padx=14, bg=BG, fg='#aebbae')
         self.count_label.pack(fill='x')
@@ -151,6 +195,16 @@ class App:
         self.preview.pack(side='left', padx=(0, 12))
         tk.Label(foot, textvariable=self.status, anchor='w', justify='left', fg=FG,
                  bg=BG, wraplength=760).pack(side='left', fill='x', expand=True)
+
+    def _toggle_developer_tools(self):
+        """Reveal diagnostics on demand; independent of emote playback."""
+        self.developer_tools_visible = not self.developer_tools_visible
+        if self.developer_tools_visible:
+            self.developer_controls.pack(side='right')
+            self.developer_button.configure(text='Developer Tools ▴')
+        else:
+            self.developer_controls.pack_forget()
+            self.developer_button.configure(text='Developer Tools ▾')
 
     def _filter_changed(self):
         self.config['animated_only'] = bool(self.only_animated.get())
@@ -222,10 +276,14 @@ class App:
                      fg=FG, bg=BG, justify='left', pady=35).grid(row=0, column=0, sticky='w')
             return
         for i, file in enumerate(filtered):
-            with Image.open(file) as im:
-                frames = getattr(im, 'n_frames', 1)
-                im.seek(min(frames - 1, 1 if frames > 1 else 0))
-                img = im.convert('RGBA').resize((72, 72), Image.Resampling.NEAREST)
+            try:
+                with Image.open(file) as im:
+                    frames = getattr(im, 'n_frames', 1)
+                    im.seek(min(frames - 1, 1 if frames > 1 else 0))
+                    img = im.convert('RGBA').resize((72, 72), Image.Resampling.NEAREST)
+            except (OSError, ValueError):
+                # Files can change while being copied into the watched directory.
+                continue
             photo = ImageTk.PhotoImage(img, master=self.root)
             self.image_refs.append(photo)
             cell = tk.Frame(self.gridframe, bg=SURFACE, padx=5, pady=6)
@@ -241,16 +299,24 @@ class App:
                      fg=GREEN if frames > 1 else '#8a9891', bg=SURFACE,
                      font=('Segoe UI', 8)).pack()
 
+    def _update_connection_indicator(self):
+        """Show the app's active backend handle, without extra USB polling."""
+        connected = self.device is not None
+        self.connection_text.set('● Connected' if connected else '● Disconnected')
+        self.connection_label.configure(fg=GREEN if connected else '#d9ae65')
+
     def connect(self, *, silent=False):
         if self.device:
             return True
         try:
             self.device, self.rgb_cls, self.client = bridge.connect_backend(self.backend.get())
             self._persist()
+            self._update_connection_indicator()
             self.status.set(f'Connected: {self.backend.get().upper()} • Other Chroma devices remain in Synapse.')
             return True
         except Exception as exc:
-            self.device = self.client = None
+            self.device = self.client = self.rgb_cls = None
+            self._update_connection_indicator()
             self.status.set('Could not connect to Seiren Emote: ' + str(exc))
             if not silent:
                 messagebox.showerror('Seiren Emote', str(exc) + '\n\nClose OpenRGB before using Direct HID on this microphone.')
@@ -259,6 +325,9 @@ class App:
     def _backend_changed(self, _event=None):
         self.stop()
         self._disconnect()
+        self._usb_generation += 1
+        self._usb_connect_inflight = False
+        self._reconnect_target = None
         self._persist()
         self.status.set('Backend switched to ' + self.backend.get() + '; select an emote.')
 
@@ -269,9 +338,16 @@ class App:
             except Exception:
                 pass
         self.client = self.device = self.rgb_cls = None
+        self._update_connection_indicator()
 
     def select(self, file: Path, *, silent=False):
-        if not file.is_file() or not self.connect(silent=silent):
+        if not file.is_file():
+            return False
+        if not self.connect(silent=silent):
+            if self.backend.get() == 'hid':
+                self._reconnect_target = file
+                self.config['last_emote'] = file.name
+                self._persist()
             return False
         self.stop()
         try:
@@ -284,6 +360,7 @@ class App:
         if not self.current_frames:
             return False
         self.current_file = file
+        self._reconnect_target = None
         self.frame_index, self.last_values = 0, None
         self.config['last_emote'] = file.name
         self._persist()
@@ -303,13 +380,21 @@ class App:
                 self.device.set_colors([self.rgb_cls(*rgb) for rgb in values], fast=True)
                 self.last_values = values
         except Exception as exc:
+            if self.backend.get() == 'hid' and self.current_file:
+                self._reconnect_target = self.current_file
             self.stop()
-            self.status.set('Frame transfer failed: ' + str(exc))
+            self.status.set('Frame transfer failed: ' + str(exc) +
+                            '. Waiting for microphone reconnect.')
             self._disconnect()
             return
         image = frame.resize((80, 80), Image.Resampling.NEAREST)
         self.preview_photo = ImageTk.PhotoImage(image, master=self.root)
         self.preview.configure(image=self.preview_photo)
+        if self.config.get('animated_tray', False):
+            try:
+                self.tray.publish_frame(frame)
+            except Exception:
+                pass  # A tray icon error must never interrupt HID playback.
         self.frame_index = (self.frame_index + 1) % len(self.current_frames)
         delay = max(50, round(duration * 1000 / max(0.25, self.speed.get())))
         self.scheduled = self.root.after(delay, self.advance_frame)
@@ -320,25 +405,177 @@ class App:
             self.scheduled = None
         self.current_file = None
         self.current_frames = []
+        if self.config.get('animated_tray', False):
+            try:
+                self.tray.restore_default_icon()
+            except Exception:
+                pass
+
+
+    def _poll_usb_presence(self):
+        """Async HID enumeration detects unplug, including static frames."""
+        if getattr(self, 'closing', False):
+            return
+        if self.backend.get() == 'hid' and not self._usb_probe_inflight:
+            self._usb_probe_inflight = True
+            def probe():
+                try:
+                    import hid
+                    from seiren_hid import VID, PID, USAGE_PAGE, USAGE
+                    found = any(d.get('usage_page') == USAGE_PAGE and
+                                d.get('usage') == USAGE
+                                for d in hid.enumerate(VID, PID))
+                    self.queue.put(('usb_presence', found))
+                except Exception:
+                    self.queue.put(('usb_presence', None))
+            threading.Thread(target=probe, daemon=True, name='SeirenUSBPresence').start()
+        self.usb_watch_after = self.root.after(2000, self._poll_usb_presence)
+
+    def _on_usb_presence(self, present):
+        self._usb_probe_inflight = False
+        if getattr(self, 'closing', False) or self.backend.get() != 'hid' or present is None:
+            return
+        if not present:
+            if self.device is not None:
+                if self.current_file is not None:
+                    self._reconnect_target = self.current_file
+                self.stop()
+                self._disconnect()
+                self.status.set('Microphone unplugged. Waiting for USB reconnect...')
+            if self._usb_connect_inflight:
+                self._usb_generation += 1
+                self._usb_connect_inflight = False
+            return
+        if self.device is not None or self._usb_connect_inflight:
+            return
+        if time.monotonic() < self._next_usb_connect:
+            return
+        self._usb_connect_inflight = True
+        self._usb_generation += 1
+        generation = self._usb_generation
+        self._next_usb_connect = time.monotonic() + 3.0
+
+        def reconnect():
+            try:
+                result = bridge.connect_backend('hid')
+                failure = None
+            except Exception as exc:
+                result, failure = None, str(exc)
+            self.queue.put(('usb_reconnect', generation, result, failure))
+        threading.Thread(target=reconnect, daemon=True, name='SeirenUSBReconnect').start()
+
+    def _on_usb_reconnect(self, generation, result, failure):
+        """Attach background-opened HID handle only on Tk thread."""
+        invalid = (getattr(self, 'closing', False) or
+                   self.backend.get() != 'hid' or
+                   generation != self._usb_generation or
+                   self.device is not None)
+        if invalid:
+            if result is not None:
+                try:
+                    result[2].disconnect()
+                except Exception:
+                    pass
+            return
+        self._usb_connect_inflight = False
+        if failure is not None:
+            self.status.set('Microphone detected; reconnecting when ready...')
+            return
+        self.device, self.rgb_cls, self.client = result
+        self._update_connection_indicator()
+        target = self._reconnect_target
+        if target is None:
+            saved = self.config.get('last_emote')
+            if isinstance(saved, str) and saved.strip():
+                candidate = EMOTES_DIR / Path(saved).name
+                if candidate.is_file():
+                    target = candidate
+        self._reconnect_target = None
+        if target is not None and target.is_file():
+            if not self.select(target, silent=True):
+                self.status.set('Microphone connected; unable to resume ' + target.name)
+        else:
+            self.status.set('Microphone connected. Select an emote.')
+
+    def refresh_library(self):
+        """Refresh directory view; never reimport assets."""
+        self.files = self._all_emote_files()
+        self._media_snapshot = media_signature(EMOTES_DIR)
+        self.render_grid()
+
+    def _poll_media_directory(self):
+        """Watch filenames, sizes and mtimes only; avoid decoding idle GIFs."""
+        if getattr(self, 'closing', False):
+            return
+        if media_signature(EMOTES_DIR) != self._media_snapshot:
+            self.refresh_library()
+        self.media_scan_after = self.root.after(5000, self._poll_media_directory)
+
+    def add_media(self):
+        selected = filedialog.askopenfilenames(parent=self.root,
+                    title='Add PNG/GIF', filetypes=[('PNG and GIF', '*.png *.gif')])
+        if not selected:
+            return
+        added, skipped = import_user_media(selected, EMOTES_DIR)
+        self.refresh_library()
+        self.status.set(f'Added {added} media file(s); {skipped} skipped.')
+        if not added and skipped:
+            messagebox.showwarning('Add PNG/GIF',
+                'No new valid PNG/GIF files selected (invalid or duplicate).', parent=self.root)
+
+    def open_media_folder(self):
+        EMOTES_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            if sys.platform == 'win32':
+                os.startfile(str(EMOTES_DIR))
+            else:
+                subprocess.Popen(['xdg-open', str(EMOTES_DIR)])
+        except Exception as exc:
+            messagebox.showerror('Media folder', str(exc), parent=self.root)
+
+    def _maybe_first_run_import(self):
+        """Import the local cache once on first launch if there are no emotes."""
+        if self.config.get('streamer_import_attempted', False):
+            return
+        self.config['streamer_import_attempted'] = True
+        self._persist()
+        if not self.files:
+            self._start_streamer_import(automatic=True)
+
+    def _start_streamer_import(self, *, automatic=False, cache_root=None):
+        if self._import_busy:
+            return
+        self._import_busy = True
+        self.status.set('Searching local Streamer Companion cache...')
+        def worker():
+            try:
+                count = import_from_cache(cache_root=cache_root)
+                failure = None
+            except Exception as exc:
+                count, failure = 0, exc
+            self.queue.put(('import_finished', count, failure, automatic))
+        threading.Thread(target=worker, name='StreamerCacheImport', daemon=True).start()
 
     def import_emotes(self):
-        try:
-            count = import_from_cache()
-        except (FileNotFoundError, RuntimeError):
-            folder = filedialog.askdirectory(title='Choose your local Streamer Companion cache folder')
-            if not folder:
+        """Explicit Streamer Companion import, independent of Refresh."""
+        self._start_streamer_import()
+
+    def _on_import_finished(self, count, failure, automatic):
+        self._import_busy = False
+        if failure is not None:
+            if automatic:
+                self.status.set('Streamer Companion cache unavailable. You can import it later.')
                 return
-            try:
-                count = import_from_cache(Path(folder))
-            except Exception as exc:
-                messagebox.showerror('Importer', str(exc))
+            if isinstance(failure, (FileNotFoundError, RuntimeError)):
+                folder = filedialog.askdirectory(parent=self.root,
+                    title='Select Streamer Companion cache folder')
+                if folder:
+                    self._start_streamer_import(cache_root=Path(folder))
                 return
-        except Exception as exc:
-            messagebox.showerror('Importer', str(exc))
+            messagebox.showerror('Streamer Companion importer', str(failure), parent=self.root)
             return
-        self.files = self._all_emote_files()
-        self.render_grid()
-        self.status.set(f'Imported {count} emotes locally. No files were uploaded.')
+        self.refresh_library()
+        self.status.set(f'Imported {count} Streamer Companion emotes locally.')
 
     def _pause_for_dialog(self):
         """Stop the timer but preserve decoded GIF frames and the current index.
@@ -755,7 +992,7 @@ class App:
             return
         target = EMOTES_DIR / Path(last).name
         if not target.is_file():
-            self.status.set('Last emote is not installed. Use Import Emotes or choose another.')
+            self.status.set('Last emote is not installed. Import from Streamer Companion or choose another.')
             return
         if not self.select(target, silent=True):
             self.status.set(f'Could not restore {target.name}. Check the microphone connection.')
@@ -766,7 +1003,13 @@ class App:
         try:
             while True:
                 cmd = self.queue.get_nowait()
-                if cmd == 'open':
+                if isinstance(cmd, tuple) and cmd[0] == 'import_finished':
+                    self._on_import_finished(*cmd[1:])
+                elif isinstance(cmd, tuple) and cmd[0] == 'usb_presence':
+                    self._on_usb_presence(*cmd[1:])
+                elif isinstance(cmd, tuple) and cmd[0] == 'usb_reconnect':
+                    self._on_usb_reconnect(*cmd[1:])
+                elif cmd == 'open':
                     self.show()
                 elif cmd == 'toggle_autostart':
                     try:
@@ -781,6 +1024,20 @@ class App:
                     self._persist()
                     self.tray.refresh()
                     self.status.set('Clear display on exit: ' + ('enabled' if self.config['clear_on_exit'] else 'disabled'))
+                elif cmd == 'toggle_animated_tray':
+                    active = not bool(self.config.get('animated_tray', False))
+                    self.config['animated_tray'] = active
+                    self._persist()
+                    self.tray.refresh()
+                    try:
+                        if active and self.current_frames:
+                            index = (self.frame_index - 1) % len(self.current_frames)
+                            self.tray.publish_frame(self.current_frames[index][0], force=True)
+                        else:
+                            self.tray.restore_default_icon()
+                    except Exception:
+                        pass
+                    self.status.set('Animated tray: ' + ('enabled' if active else 'disabled'))
                 elif cmd == 'exit':
                     self.exit()
                     return
@@ -799,6 +1056,19 @@ class App:
 
     def exit(self):
         self.closing = True
+        self._usb_generation += 1
+        if getattr(self, 'usb_watch_after', None) is not None:
+            try:
+                self.root.after_cancel(self.usb_watch_after)
+            except tk.TclError:
+                pass
+            self.usb_watch_after = None
+        if getattr(self, 'media_scan_after', None) is not None:
+            try:
+                self.root.after_cancel(self.media_scan_after)
+            except tk.TclError:
+                pass
+            self.media_scan_after = None
         if getattr(self, 'queue_after', None) is not None:
             try:
                 self.root.after_cancel(self.queue_after)

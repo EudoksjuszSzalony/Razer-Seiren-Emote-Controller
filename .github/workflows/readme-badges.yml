@@ -1,0 +1,37 @@
+name: Update README badges
+
+on:
+  workflow_dispatch:
+  # Populate native Shields.io renders in the feature branch for visual review.
+  # Future bot-only SVG commits do not match these changed paths.
+  push:
+    branches: [feature/animated-tray-media-library]
+    paths:
+      - 'tools/update_readme_badges.py'
+      - '.github/workflows/readme-badges.yml'
+  schedule:
+    # Runs from the default branch only after PR merge.
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  badges:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout triggering branch
+        uses: actions/checkout@v4
+      - name: Mirror verified Shields.io badges
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/update_readme_badges.py
+      - name: Commit changed badge SVGs only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/badges/*.svg
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: refresh README release statistics [skip ci]"
+            git push
+          fi

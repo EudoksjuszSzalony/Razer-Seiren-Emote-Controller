@@ -3,20 +3,18 @@
 Control the **Razer Seiren Emote** display with your own GIF and PNG emotes —  
 without OpenRGB, and without taking over the rest of your Razer setup.
 
-<p align="left">
-  <img src="https://img.shields.io/github/downloads/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/total?style=flat-square" alt="Downloads" />
-  <img src="https://img.shields.io/github/v/release/EudoksjuszSzalony/Razer-Seiren-Emote-Controller?style=flat-square&label=Latest%20Release" alt="Latest Release" />
-  <img src="https://img.shields.io/badge/No_Python_Required-Installer-2ea44f?style=flat-square&logo=windows&logoColor=white" alt="No Python required to install" />
-  <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/github/license/EudoksjuszSzalony/Razer-Seiren-Emote-Controller?style=flat-square" alt="License" />
-  <img src="https://img.shields.io/badge/Status-Stable-success?style=flat-square" alt="Stable" />
-</p>
+[![Total downloads](docs/badges/downloads.svg)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases)
+[![Latest release](docs/badges/release.svg)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest)
+![No Python needed](docs/badges/python.svg)
+![Windows](docs/badges/platform.svg)
+[![GPL-3.0 License](docs/badges/license.svg)](LICENSE)
+![Stable](docs/badges/status.svg)
 
 ---
 
 ## Download
 
-[![Download for Windows](https://img.shields.io/badge/Download-Windows%20Installer-2ea44f?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest/download/SeirenEmoteController_Setup_Latest.exe)
+[![Download for Windows](docs/badges/download-windows.svg)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest/download/SeirenEmoteController_Setup_Latest.exe)
 
 **Windows 10/11 (x64)** · No Python or OpenRGB installation required.
 
@@ -48,8 +46,9 @@ It lets you:
 - ✅ Adjustable **brightness**
 - ✅ Adjustable **animation speed**
 - ✅ Easy **display orientation** controls
-- ✅ Import emotes from local sources
-- ✅ Tray mode + optional autostart
+- ✅ Import Razer Streamer Companion emotes from local cache, or add your own PNG/GIF from the GUI
+- ✅ Lightweight automatic media folder refresh
+- ✅ Tray mode, persistent checked options, optional animated live emote preview
 - ✅ Restore last selected emote on app launch
 - ✅ Windows installer with Start Menu integration
 
@@ -57,36 +56,60 @@ It lets you:
 
 ## Quick Start
 
-### 1. Install
-Download the latest installer from the button above and run it.
+### 1. Prepare Streamer Companion (recommended)
+To use the original Razer 8×8 emotes, install **Razer Streamer Companion** and run it at least once so its local cache is populated. Seiren Emote Controller can import compatible cached animations, without redistributing proprietary assets. You can also use your own PNG/GIF images instead.
 
-### 2. Launch
-Open **Seiren Emote Controller** from the Start Menu.
+### 2. Install and launch
+Download the **Windows installer** at the top of this page and run it. **Python and OpenRGB are not required.** Start Seiren Emote Controller from the Start Menu or system tray.
 
-### 3. Connect
-Click **Connect**.
+**No need to press Connect** in normal use: selecting or restoring an emote connects automatically. The manual connection control lives under **Developer Tools**.
 
-### 4. Import emotes
-Use **Import Emotes** or copy your own GIF/PNG files into the emotes folder.
+**Application window · emote library**
+
+Browse and search your emotes; adjust brightness or playback speed, filter animated images, and manage PNG/GIF files without leaving the program. The small **Connected / Disconnected** indicator beside **Display Orientation** shows whether the app currently has an open connection to the microphone, without additional USB polling.
+
+[![Seiren Emote Controller application window with emote thumbnails and controls](docs/screenshots/main-window.webp)](docs/screenshots/main-window.webp)
+
+### 3. Get emotes into your library
+- On a fresh, empty installation, the app tries to import the **local Streamer Companion cache** automatically in the background.
+- **Import Streamer Companion** lets you retry that operation or select a custom cache directory.
+- **Add PNG/GIF** copies your own images into the library.
+- **Open media folder** opens the library in Windows Explorer.
+- **Refresh icons** only refreshes the local gallery; it does not reimport assets.
+
+New or removed media files are detected automatically about every **5 seconds**, using lightweight file metadata checks.
+
+### 4. Optional: Set display orientation
+If the pattern on the physical microphone does not match the preview, select **Display Orientation**, choose the correct rotation/mirror setting and click **Apply**. You generally only need to calibrate once.
+
+[![Display Orientation settings and LED direction preview](docs/screenshots/orientation.png)](docs/screenshots/orientation.png)
 
 ### 5. Play
-Click any emote in the library to display it on your Seiren Emote.
+Select any emote in the library to show it on the microphone. The app restores your last played emote when you launch it again.
+
+**USB reconnect:** Disconnecting the microphone changes the status to **Disconnected**. After replugging it, the app automatically reopens the HID interface and resumes your last selected emote, including static frames, without pressing Connect or selecting the animation again. Presence checks run in the background approximately every two seconds.
+
+### System tray · quick settings
+The system tray icon keeps the controller accessible when its window is hidden. Right-click it to open the settings menu:
+
+[![Windows system tray menu showing all three checked settings](docs/screenshots/tray-menu.webp)](docs/screenshots/tray-menu.webp)
+
+A **checkmark means enabled**:
+
+| Option | What it does | Default |
+| --- | --- | --- |
+| **Autostart** | Launch the app automatically when you sign in to Windows | Set by the installer or Tray |
+| **Clear display on exit** | Clear the microphone matrix when fully exiting, but not when merely hiding the window | Off |
+| **Animated tray** | Show a live preview of the playing 8×8 emote rather than the static app icon | Off |
+
+The optional animated Tray refreshes at **up to 5 FPS**, without issuing extra USB commands. These settings persist across restarts. 
+
+### Developer Tools (optional)
+Click **Developer Tools** in the main window to reveal **Backend**, **Connect**, and **Stop** for manual troubleshooting. The controls are hidden by default so everyday playback remains simple; no manual connection is required.
+
+All local media and user settings are stored under `%LOCALAPPDATA%\SeirenEmoteController`. The application does not upload your files.
 
 ---
-
-## Screenshots
-
-### Main window
-![Main UI](docs/screenshots/main-ui.png)
-
-### Orientation setup
-![Orientation](docs/screenshots/orientation.png)
-
-### Example output on microphone
-![Seiren Example](docs/screenshots/microphone-preview.png)
-
----
-
 ## Why this project?
 
 The goal was to create a **simple, standalone controller** for the  
@@ -101,6 +124,9 @@ The goal was to create a **simple, standalone controller** for the
 
 ## Notes
 
+- README badge SVGs are rendered **by Shields.io** and mirrored into this repository by GitHub Actions roughly every six hours. This retains the original Shields design without loading a Shields URL through GitHub Camo on every page view. Download counts reflect GitHub Release asset downloads, not unique users or repository clones.
+- A layer-based in-app animation editor is a future idea, **not included** in this branch.
+
 - The installer is currently **not digitally signed**.
   Windows SmartScreen may show a warning before launch.
 - **Razer-owned original GIF assets are not redistributed** in this repository or release packages.
@@ -108,9 +134,11 @@ The goal was to create a **simple, standalone controller** for the
 
 ---
 
-## Build from source
+## Build from source — ONLY FOR DEVELOPERS
 
-Requires **Python 3.11+** (only for running from source, not for the Windows installer).
+**End users: do not run these commands.** Install the ready-to-use Windows application from the [Download](#download) section instead.
+
+The steps below are only for developers running or modifying the source code. Requires **Python 3.11+**.
 
 ```powershell
 py -m pip install -r requirements.txt

@@ -103,6 +103,7 @@ DEFAULT_CONFIG = {
     'transform': 'flip_v', 'brightness': 0.70, 'speed': 1.0,
     'snake': False, 'backend': 'hid', 'last_emote': '',
     'animated_only': False, 'clear_on_exit': False,
+    'animated_tray': False, 'streamer_import_attempted': False,
 }
 
 
@@ -127,7 +128,7 @@ def read_config() -> dict:
             config[key] = DEFAULT_CONFIG[key]
     if config['backend'] not in ('hid', 'openrgb'):
         config['backend'] = 'hid'
-    for key in ('animated_only', 'clear_on_exit'):
+    for key in ('animated_only', 'clear_on_exit', 'animated_tray', 'streamer_import_attempted'):
         if not isinstance(config.get(key), bool):
             config[key] = DEFAULT_CONFIG[key]
     return config
