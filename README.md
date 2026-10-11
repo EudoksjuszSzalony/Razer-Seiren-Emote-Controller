@@ -3,20 +3,15 @@
 Control the **Razer Seiren Emote** display with your own GIF and PNG emotes —  
 without OpenRGB, and without taking over the rest of your Razer setup.
 
-<p align="left">
-  <img src="https://img.shields.io/github/downloads/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/total?style=flat-square" alt="Downloads" />
-  <img src="https://img.shields.io/github/v/release/EudoksjuszSzalony/Razer-Seiren-Emote-Controller?style=flat-square&label=Latest%20Release" alt="Latest Release" />
-  <img src="https://img.shields.io/badge/No_Python_Required-Installer-2ea44f?style=flat-square&logo=windows&logoColor=white" alt="No Python required to install" />
-  <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/github/license/EudoksjuszSzalony/Razer-Seiren-Emote-Controller?style=flat-square" alt="License" />
-  <img src="https://img.shields.io/badge/Status-Stable-success?style=flat-square" alt="Stable" />
-</p>
+**[⬇ Download for Windows](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest/download/SeirenEmoteController_Setup_Latest.exe)** · [Latest release](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest) · [Releases and download statistics](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases) · Windows 10/11 x64 · [GPL-3.0](LICENSE)
+
+
 
 ---
 
 ## Download
 
-[![Download for Windows](https://img.shields.io/badge/Download-Windows%20Installer-2ea44f?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest/download/SeirenEmoteController_Setup_Latest.exe)
+**[Download the current Windows installer (.exe)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest/download/SeirenEmoteController_Setup_Latest.exe)**
 
 **Windows 10/11 (x64)** · No Python or OpenRGB installation required.
 
@@ -48,8 +43,9 @@ It lets you:
 - ✅ Adjustable **brightness**
 - ✅ Adjustable **animation speed**
 - ✅ Easy **display orientation** controls
-- ✅ Import emotes from local sources
-- ✅ Tray mode + optional autostart
+- ✅ Import Razer Streamer Companion emotes from local cache, or add your own PNG/GIF from the GUI
+- ✅ Lightweight automatic media folder refresh
+- ✅ Tray mode, persistent checked options, optional animated live emote preview
 - ✅ Restore last selected emote on app launch
 - ✅ Windows installer with Start Menu integration
 
@@ -57,23 +53,38 @@ It lets you:
 
 ## Quick Start
 
-### 1. Install
-Download the latest installer from the button above and run it.
+### 1. Prepare Streamer Companion (recommended)
+If you want the original Razer 8×8 emotes, install **Razer Streamer Companion** and run it at least once to populate its local cache. Seiren Emote Controller can read compatible cached emotes without redistributing Razer assets. The importer is best-effort and depends on the local cache format; you may always use your own PNG/GIF files instead.
 
-### 2. Launch
-Open **Seiren Emote Controller** from the Start Menu.
+### 2. Install and launch
+Download the latest Windows installer above. No Python or OpenRGB is required. Launch **Seiren Emote Controller** from Start or tray. There is **no need to click Connect** in normal use — selecting or restoring an emote connects automatically. Connect is still available for manual troubleshooting.
 
-### 3. Connect
-Click **Connect**.
+### 3. Get media into your library
+- On a fresh empty installation the app **attempts one automatic local Streamer Companion import**, asynchronously, without delaying startup.
+- Click **Import Streamer Companion** to import again or choose a custom cache folder.
+- Click **Add PNG/GIF** to copy your own images into the library (no Explorer navigation required).
+- Click **Open media folder** to open the library in Windows Explorer.
+- **Refresh library** only refreshes visible local media; it does not import from Streamer Companion.
 
-### 4. Import emotes
-Use **Import Emotes** or copy your own GIF/PNG files into the emotes folder.
+### 4. Play
+Click an emote to play it. The gallery also checks file names, sizes and modification dates every **5 seconds**, refreshing only when files change (no continuous GIF decoding or busy polling).
 
-### 5. Play
-Click any emote in the library to display it on your Seiren Emote.
+## Tray menu and settings
+
+Right-click the notification-area (system tray) icon to access these settings. A **checkmark means enabled**:
+
+| Option | Description | Default |
+| --- | --- | --- |
+| Autostart | Start the app when you sign in to Windows | Set by installer or tray |
+| Clear display on exit | Send an all-black frame when fully exiting, not when hiding to tray | Off |
+| Animated tray | Show a live 8×8 preview of the selected emote instead of the default static icon | Off |
+
+Animated tray updates are throttled to a maximum of **5 FPS** to reduce Windows Explorer/notification-area work. It does not send additional USB HID commands and is independent of microphone playback. Settings persist across launches.
+
+All local media and user settings are stored under `%LOCALAPPDATA%\SeirenEmoteController`. The application does not upload your files anywhere.
 
 ---
-
+ 
 ## Screenshots
 
 ### Main window
@@ -100,6 +111,9 @@ The goal was to create a **simple, standalone controller** for the
 ---
 
 ## Notes
+
+- The old external Shields.io status images occasionally returned “Error Fetching Resource”. The header uses plain links that remain useful without a third-party image service; visit the Releases page for current download numbers.
+- A layer-based in-app animation editor is a future idea, **not included** in this branch.
 
 - The installer is currently **not digitally signed**.
   Windows SmartScreen may show a warning before launch.
