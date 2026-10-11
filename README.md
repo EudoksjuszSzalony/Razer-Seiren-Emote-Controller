@@ -3,15 +3,18 @@
 Control the **Razer Seiren Emote** display with your own GIF and PNG emotes —  
 without OpenRGB, and without taking over the rest of your Razer setup.
 
-**[⬇ Download for Windows](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest/download/SeirenEmoteController_Setup_Latest.exe)** · [Latest release](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest) · [Releases and download statistics](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases) · Windows 10/11 x64 · [GPL-3.0](LICENSE)
-
-
+[![Total downloads](docs/badges/downloads.svg)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases)
+[![Latest release](docs/badges/release.svg)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest)
+![No Python needed](docs/badges/python.svg)
+![Windows](docs/badges/platform.svg)
+[![GPL-3.0 License](docs/badges/license.svg)](LICENSE)
+![Stable](docs/badges/status.svg)
 
 ---
 
 ## Download
 
-**[Download the current Windows installer (.exe)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest/download/SeirenEmoteController_Setup_Latest.exe)**
+[![Download for Windows](docs/badges/download-windows.svg)](https://github.com/EudoksjuszSzalony/Razer-Seiren-Emote-Controller/releases/latest/download/SeirenEmoteController_Setup_Latest.exe)
 
 **Windows 10/11 (x64)** · No Python or OpenRGB installation required.
 
@@ -112,7 +115,7 @@ The goal was to create a **simple, standalone controller** for the
 
 ## Notes
 
-- The old external Shields.io status images occasionally returned “Error Fetching Resource”. The header uses plain links that remain useful without a third-party image service; visit the Releases page for current download numbers.
+- README badges are **repository-hosted SVGs** instead of externally rendered Shields.io images. GitHub Actions refreshes release and download statistics about every six hours. Download counts reflect GitHub Release asset downloads, not unique users or repository clones.
 - A layer-based in-app animation editor is a future idea, **not included** in this branch.
 
 - The installer is currently **not digitally signed**.
