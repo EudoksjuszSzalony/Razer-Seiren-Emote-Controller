@@ -7,6 +7,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
+import sys
+import threading
 from datetime import datetime
 from pathlib import Path
 import queue
@@ -17,6 +21,7 @@ from PIL import Image, ImageTk
 
 import seiren_emote_bridge as bridge
 from emote_importer import APP_DIR, EMOTES_DIR, import_from_cache
+from media_library import import_user_media, media_signature
 from windows_integration import Tray, autostart_enabled, set_autostart
 from pixel_mapping import (DEFAULT_PROBE_POINTS, EXTRA_PROBE_POINTS, infer_orientation)
 
@@ -49,6 +54,8 @@ class App:
         self.config = bridge.read_config()
         EMOTES_DIR.mkdir(parents=True, exist_ok=True)
         self.files = self._all_emote_files()
+        self._media_snapshot = media_signature(EMOTES_DIR)
+        self._import_busy = False
         self.client = self.device = self.rgb_cls = None
         self.scheduled = self.save_after = self.resize_after = None
         self.current_frames, self.current_file = [], None
@@ -81,6 +88,7 @@ class App:
             self.root.protocol('WM_DELETE_WINDOW', self.exit)
         self.closing = False
         self.queue_after = self.root.after(100, self._check_queue)
+        self.media_scan_after = self.root.after(5000, self._poll_media_directory)
         if tray_only and tray_ready:
             self.root.withdraw()
         else:
@@ -88,6 +96,7 @@ class App:
         # Restore from the same saved profile regardless of how the app launches.
         # Defer until widgets, the tray, and the Tk event loop are initialized.
         self.root.after(600, self._restore_last_emote)
+        self.root.after(1200, self._maybe_first_run_import)
 
     @staticmethod
     def _all_emote_files():
@@ -104,10 +113,19 @@ class App:
         backend_box.pack(side='right', padx=(6, 0))
         backend_box.bind('<<ComboboxSelected>>', self._backend_changed)
         tk.Label(top, text='Backend', bg=BG, fg=FG).pack(side='right', padx=(6, 0))
-        tk.Button(top, text='Import Emotes', command=self.import_emotes,
-                  bg=SURFACE, fg=FG).pack(side='right', padx=(5, 0))
         tk.Button(top, text='Display Orientation', command=self.calibrate, bg=SURFACE,
                   fg=FG).pack(side='right', padx=(5, 0))
+
+        library_actions = tk.Frame(self.root, bg=BG, padx=14, pady=5)
+        library_actions.pack(fill='x')
+        tk.Button(library_actions, text='Add PNG/GIF', command=self.add_media,
+                  bg='#336b24', fg='white').pack(side='left', padx=(0, 7))
+        tk.Button(library_actions, text='Open media folder', command=self.open_media_folder,
+                  bg=SURFACE, fg=FG).pack(side='left', padx=(0, 7))
+        tk.Button(library_actions, text='Import Streamer Companion', command=self.import_emotes,
+                  bg=SURFACE, fg=FG).pack(side='left', padx=(0, 7))
+        tk.Button(library_actions, text='Refresh library', command=self.refresh_library,
+                  bg=SURFACE, fg=FG).pack(side='left')
 
         controls = tk.Frame(self.root, bg=BG, padx=14, pady=5)
         controls.pack(fill='x')
@@ -332,24 +350,85 @@ class App:
             except Exception:
                 pass
 
-    def import_emotes(self):
-        try:
-            count = import_from_cache()
-        except (FileNotFoundError, RuntimeError):
-            folder = filedialog.askdirectory(title='Choose your local Streamer Companion cache folder')
-            if not folder:
-                return
-            try:
-                count = import_from_cache(Path(folder))
-            except Exception as exc:
-                messagebox.showerror('Importer', str(exc))
-                return
-        except Exception as exc:
-            messagebox.showerror('Importer', str(exc))
-            return
+    def refresh_library(self):
+        """Refresh directory view; never reimport assets."""
         self.files = self._all_emote_files()
+        self._media_snapshot = media_signature(EMOTES_DIR)
         self.render_grid()
-        self.status.set(f'Imported {count} emotes locally. No files were uploaded.')
+
+    def _poll_media_directory(self):
+        """Watch filenames, sizes and mtimes only; avoid decoding idle GIFs."""
+        if getattr(self, 'closing', False):
+            return
+        if media_signature(EMOTES_DIR) != self._media_snapshot:
+            self.refresh_library()
+        self.media_scan_after = self.root.after(5000, self._poll_media_directory)
+
+    def add_media(self):
+        selected = filedialog.askopenfilenames(parent=self.root,
+                    title='Add PNG/GIF', filetypes=[('PNG and GIF', '*.png *.gif')])
+        if not selected:
+            return
+        added, skipped = import_user_media(selected, EMOTES_DIR)
+        self.refresh_library()
+        self.status.set(f'Added {added} media file(s); {skipped} skipped.')
+        if not added and skipped:
+            messagebox.showwarning('Add PNG/GIF',
+                'No new valid PNG/GIF files selected (invalid or duplicate).', parent=self.root)
+
+    def open_media_folder(self):
+        EMOTES_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            if sys.platform == 'win32':
+                os.startfile(str(EMOTES_DIR))
+            else:
+                subprocess.Popen(['xdg-open', str(EMOTES_DIR)])
+        except Exception as exc:
+            messagebox.showerror('Media folder', str(exc), parent=self.root)
+
+    def _maybe_first_run_import(self):
+        """Import the local cache once on first launch if there are no emotes."""
+        if self.config.get('streamer_import_attempted', False):
+            return
+        self.config['streamer_import_attempted'] = True
+        self._persist()
+        if not self.files:
+            self._start_streamer_import(automatic=True)
+
+    def _start_streamer_import(self, *, automatic=False, cache_root=None):
+        if self._import_busy:
+            return
+        self._import_busy = True
+        self.status.set('Searching local Streamer Companion cache...')
+        def worker():
+            try:
+                count = import_from_cache(cache_root=cache_root)
+                failure = None
+            except Exception as exc:
+                count, failure = 0, exc
+            self.queue.put(('import_finished', count, failure, automatic))
+        threading.Thread(target=worker, name='StreamerCacheImport', daemon=True).start()
+
+    def import_emotes(self):
+        """Explicit Streamer Companion import, independent of Refresh."""
+        self._start_streamer_import()
+
+    def _on_import_finished(self, count, failure, automatic):
+        self._import_busy = False
+        if failure is not None:
+            if automatic:
+                self.status.set('Streamer Companion cache unavailable. You can import it later.')
+                return
+            if isinstance(failure, (FileNotFoundError, RuntimeError)):
+                folder = filedialog.askdirectory(parent=self.root,
+                    title='Select Streamer Companion cache folder')
+                if folder:
+                    self._start_streamer_import(cache_root=Path(folder))
+                return
+            messagebox.showerror('Streamer Companion importer', str(failure), parent=self.root)
+            return
+        self.refresh_library()
+        self.status.set(f'Imported {count} Streamer Companion emotes locally.')
 
     def _pause_for_dialog(self):
         """Stop the timer but preserve decoded GIF frames and the current index.
@@ -777,7 +856,9 @@ class App:
         try:
             while True:
                 cmd = self.queue.get_nowait()
-                if cmd == 'open':
+                if isinstance(cmd, tuple) and cmd[0] == 'import_finished':
+                    self._on_import_finished(*cmd[1:])
+                elif cmd == 'open':
                     self.show()
                 elif cmd == 'toggle_autostart':
                     try:
@@ -824,6 +905,12 @@ class App:
 
     def exit(self):
         self.closing = True
+        if getattr(self, 'media_scan_after', None) is not None:
+            try:
+                self.root.after_cancel(self.media_scan_after)
+            except tk.TclError:
+                pass
+            self.media_scan_after = None
         if getattr(self, 'queue_after', None) is not None:
             try:
                 self.root.after_cancel(self.queue_after)
