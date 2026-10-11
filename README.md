@@ -115,7 +115,7 @@ The goal was to create a **simple, standalone controller** for the
 
 ## Notes
 
-- README badges are **repository-hosted SVGs** instead of externally rendered Shields.io images. GitHub Actions refreshes release and download statistics about every six hours. Download counts reflect GitHub Release asset downloads, not unique users or repository clones.
+- README badge SVGs are rendered **by Shields.io** and mirrored into this repository by GitHub Actions roughly every six hours. This retains the original Shields design without loading a Shields URL through GitHub Camo on every page view. Download counts reflect GitHub Release asset downloads, not unique users or repository clones.
 - A layer-based in-app animation editor is a future idea, **not included** in this branch.
 
 - The installer is currently **not digitally signed**.

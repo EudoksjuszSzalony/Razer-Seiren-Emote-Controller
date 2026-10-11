@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Generate repository-hosted GitHub README badges, without Shields.io.
+"""Mirror official Shields.io SVG badge renders into this repository.
 
 Use the GitHub releases API for the current version and total asset downloads.
-GitHub Actions refreshes the SVGs periodically; README views need no external
-badge provider. Stdlib only: no dependency on PIL, fonts or SVG packages.
+GitHub Actions refreshes the SVGs periodically; README views do not depend
+on either Shields.io availability or GitHub Camo cache state. Stdlib only.
 """
 from __future__ import annotations
 
 import argparse
-from html import escape
 import json
-import math
 import os
 from pathlib import Path
 import urllib.request
@@ -55,48 +53,89 @@ def release_stats() -> tuple[str, int]:
     return str(latest["tag_name"]), total
 
 
-def badge(left: str, right: str, color: str) -> str:
-    """Balanced two-panel SVG with natural (never stretched) text rendering.
+def shields_url(label: str, message: str, color: str, *, style: str = "flat-square",
+                logo: str | None = None) -> str:
+    """Official Shields.io static badge API, preserving native badge styling."""
+    from urllib.parse import quote, urlencode
 
-    No textLength/lengthAdjust: scaling glyphs was distorting numbers and labels.
-    Both parts inherit the same font, weight, size and baseline.
+    def component(text: str) -> str:
+        # Shields uses -- for literal hyphens; URL encoding handles spaces.
+        return quote(text.replace("-", "--").replace("_", "__"), safe="")
+
+    path = "-".join(component(part) for part in (label, message, color))
+    opts = {"style": style}
+    if logo:
+        opts.update(logo=logo, logoColor="white")
+    return "https://img.shields.io/badge/" + path + "?" + urlencode(opts)
+
+
+def shields_svg(label: str, message: str, color: str, *,
+                style: str = "flat-square", logo: str | None = None) -> str:
+    """Retrieve an actual Shields.io-rendered SVG, validating it before saving.
+
+    Download failures do not overwrite existing, working local badge files.
     """
-    # Generous padding allows different systems' fonts to render naturally,
-    # without forcing glyphs to fit an artificial text length.
-    left_width = max(58, math.ceil(len(left) * 7.2 + 28))
-    right_width = max(48, math.ceil(len(right) * 7.2 + 28))
-    width = left_width + right_width
-    left_s, right_s = escape(left), escape(right)
-    title = escape(f"{left}: {right}")
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="24" viewBox="0 0 {width} 24" role="img" aria-label="{title}">
-<title>{title}</title>
-<rect width="{width}" height="24" rx="4" fill="#32383e"/>
-<path d="M{left_width},0 H{width - 4} Q{width},0 {width},4 V20 Q{width},24 {width - 4},24 H{left_width} Z" fill="{color}"/>
-<g fill="#fff" font-family="Verdana, DejaVu Sans, Arial, sans-serif" font-size="11" font-weight="600" text-anchor="middle">
-<text x="{left_width / 2:g}" y="16">{left_s}</text>
-<text x="{left_width + right_width / 2:g}" y="16">{right_s}</text>
-</g></svg>
-"""
+    from xml.etree import ElementTree as ET
+    import time
+
+    url = shields_url(label, message, color, style=style, logo=logo)
+    last_error = None
+    for attempt in range(3):
+        try:
+            request = urllib.request.Request(url, headers={
+                "User-Agent": "SeirenEmoteController-readme-badge-mirror",
+                "Accept": "image/svg+xml",
+            })
+            with urllib.request.urlopen(request, timeout=25) as response:
+                payload = response.read(100001)
+                if len(payload) > 100000:
+                    raise ValueError("Shields SVG exceeded maximum expected size")
+                svg = payload.decode("utf-8")
+            root = ET.fromstring(svg)
+            if root.tag != "{http://www.w3.org/2000/svg}svg":
+                raise ValueError("Shields response is not an SVG")
+            # Error badges may be valid SVGs; validate the actual expected text.
+            contents = " ".join(root.itertext()).casefold()
+            if label.casefold() not in contents or message.casefold() not in contents:
+                raise ValueError("Shields response has unexpected text (possible error badge)")
+            if any(elem.tag.rsplit("}", 1)[-1].lower() in ("script", "foreignobject")
+                   for elem in root.iter()):
+                raise ValueError("Unsupported active content in badge")
+            return svg if svg.endswith("\n") else svg + "\n"
+        except (OSError, UnicodeError, ValueError, ET.ParseError) as exc:
+            last_error = exc
+            if attempt < 2:
+                time.sleep(2 * (attempt + 1))
+    raise RuntimeError(f"Could not verify Shields.io badge {label!r}: {last_error}")
 
 
 def generate(version: str, downloads: int, out: Path = BASE) -> None:
+    """Mirror real Shields.io badge designs using authenticated GitHub stats.
+
+    Download all seven files successfully before overwriting any old assets.
+    This keeps README functional if Shields.io has a temporary outage.
+    """
     if downloads < 0:
         raise ValueError("Download count must not be negative")
-    out.mkdir(parents=True, exist_ok=True)
     definitions = {
-        "downloads.svg": ("downloads", f"{downloads:,}", "#15803d"),
-        "release.svg": ("latest release", version, "#2563eb"),
-        "python.svg": ("python", "not required", "#16a34a"),
-        "platform.svg": ("platform", "windows", "#0078d4"),
-        "license.svg": ("license", "GPL-3.0", "#16a34a"),
-        "status.svg": ("status", "stable", "#16a34a"),
-        "download-windows.svg": ("download", "windows installer", "#16a34a"),
+        "downloads.svg": ("downloads", f"{downloads:,}", "brightgreen", "flat-square", None),
+        "release.svg": ("latest release", version, "blue", "flat-square", None),
+        "python.svg": ("no python required", "installer", "2ea44f", "flat-square", "windows"),
+        "platform.svg": ("platform", "windows", "0078D6", "flat-square", "windows"),
+        "license.svg": ("license", "GPL-3.0", "brightgreen", "flat-square", None),
+        "status.svg": ("status", "stable", "brightgreen", "flat-square", None),
+        "download-windows.svg": ("download", "windows installer", "2ea44f", "for-the-badge", "windows"),
     }
-    for name, (left, right, color) in definitions.items():
-        path = out / name
-        svg = badge(left, right, color)
-        if not path.exists() or path.read_text(encoding="utf-8") != svg:
-            path.write_text(svg, encoding="utf-8")
+    rendered = {}
+    for filename, (label, message, color, style, logo) in definitions.items():
+        rendered[filename] = shields_svg(label, message, color, style=style, logo=logo)
+    out.mkdir(parents=True, exist_ok=True)
+    for filename, svg in rendered.items():
+        path = out / filename
+        if not path.is_file() or path.read_text(encoding="utf-8") != svg:
+            temporary = path.with_suffix(".svg.tmp")
+            temporary.write_text(svg, encoding="utf-8")
+            temporary.replace(path)
 
 
 def main():
@@ -108,7 +147,7 @@ def main():
         parser.error("--version and --downloads must be supplied together")
     version, downloads = (args.version, args.downloads) if args.version is not None else release_stats()
     generate(version, downloads)
-    print(f"Updated SVG badges: latest {version}, {downloads} release-asset download events")
+    print(f"Mirrored 7 verified Shields.io SVGs: latest {version}, {downloads} release-asset download events")
 
 
 if __name__ == "__main__":
