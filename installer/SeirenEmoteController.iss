@@ -1,5 +1,5 @@
 #define MyAppName "Seiren Emote Controller"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppExeName "SeirenEmoteController.exe"
 [Setup]
 AppId={{D2183FF9-7433-495F-A0C5-2A7E84268E7B}

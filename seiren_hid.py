@@ -82,9 +82,10 @@ class SeirenHidDevice:
         self._device = device
         self._lock = threading.Lock()
         self._closed = False
-        # Timing override can be used for diagnostics; geometry was the main
-        # cause of empty visual rows with the previous 8x8 HID packet layout.
-        self.row_delay_ms = float(os.environ.get('SEIREN_HID_ROW_DELAY_MS', '1'))
+        # The Seiren Emote firmware may partially apply frames at 1 ms pacing.
+        # 5 ms was validated on real hardware with GIF, hardcoded and full-screen
+        # color tests. Keep the environment override for diagnostics.
+        self.row_delay_ms = float(os.environ.get('SEIREN_HID_ROW_DELAY_MS', '5'))
         if not 0 <= self.row_delay_ms <= 250:
             raise ValueError('SEIREN_HID_ROW_DELAY_MS must be from 0 to 250')
 

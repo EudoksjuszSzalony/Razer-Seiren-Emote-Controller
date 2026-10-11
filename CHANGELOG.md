@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.1 — 2026-10-11 (HID frame reliability fix)
+
+- Increase the native Seiren Emote HID report pacing from 1 ms to **5 ms** by default. Testing on a physical microphone eliminated partial-color artifacts and intermittent frozen frames seen with animated `F_white` and rapid emote switching.
+- Keep the existing 4×16 row transport, `Apply` report sequence, 8×8 calibration, animations, remembered emotes, and exit behavior unchanged. No extra black/clear frames are inserted when switching.
+- Keep the `SEIREN_HID_ROW_DELAY_MS` environment override (0–250 ms) and explicit `delay_ms` override for diagnostics.
+- Add a regression test for default 5 ms pacing and full report ordering.
+
+
 ## v1.0.0 — 2026-10-10 (first official stable release)
 
 - Standalone Windows 10/11 x64 application with Direct USB HID support for the 8×8 Seiren Emote LED matrix; no OpenRGB server or separate Python installation is required.
