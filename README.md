@@ -90,17 +90,33 @@ All local media and user settings are stored under `%LOCALAPPDATA%\SeirenEmoteCo
  
 ## Screenshots
 
-### Main window
-![Main UI](docs/screenshots/main-ui.png)
+### Application window · emote library
 
-### Orientation setup
-![Orientation](docs/screenshots/orientation.png)
+Browse the 8×8 GIF/PNG collection, search by name, switch animations instantly, and adjust **brightness**, **speed**, and **display orientation**. Import from Streamer Companion or add your own images without leaving the application.
 
-### Example output on microphone
-![Seiren Example](docs/screenshots/microphone-preview.png)
+<p align="center">
+  <a href="docs/screenshots/main-window.webp"><img src="docs/screenshots/main-window.webp" alt="Seiren Emote Controller main window showing emote thumbnails, import buttons and playback controls" width="100%"></a>
+</p>
+
+### System tray · quick settings
+
+The right-click menu provides three persistent, checkable options: **Autostart**, **Clear display on exit**, and **Animated tray** (a live preview of the current emote). A checkmark means the option is enabled.
+
+<p align="center">
+  <a href="docs/screenshots/tray-menu.webp"><img src="docs/screenshots/tray-menu.webp" alt="Windows notification area menu with Autostart, Clear display on exit, and Animated tray checked" width="202"></a>
+</p>
+
+<details>
+<summary><strong>Repository badge preview</strong> · release statistics and Windows installer download</summary>
+
+The README header uses repository-hosted copies of the official Shields.io badges. The real counters and release version are updated automatically.
+
+<p align="center">
+  <a href="docs/screenshots/readme-header-badges.webp"><img src="docs/screenshots/readme-header-badges.webp" alt="GitHub README showing release and download badges and the Windows installer download button" width="841"></a>
+</p>
+</details>
 
 ---
-
 ## Why this project?
 
 The goal was to create a **simple, standalone controller** for the  
