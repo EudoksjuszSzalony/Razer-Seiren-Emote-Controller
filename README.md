@@ -100,12 +100,12 @@ A **checkmark means enabled**:
 | **Clear display on exit** | Clear the microphone matrix when fully exiting, but not when merely hiding the window | Off |
 | **Animated tray** | Show a live preview of the playing 8×8 emote rather than the static app icon | Off |
 
-The optional animated Tray refreshes at **up to 5 FPS**, without issuing extra USB commands. These settings persist across restarts. There is no separate tray tooltip setting.
+The optional animated Tray refreshes at **up to 5 FPS**, without issuing extra USB commands. These settings persist across restarts. 
 
 ### Developer Tools (optional)
 Click **Developer Tools** in the main window to reveal **Backend**, **Connect**, and **Stop** for manual troubleshooting. The controls are hidden by default so everyday playback remains simple; no manual connection is required.
 
-All local media and user settings are stored under `%LOCALAPPDATA%\\SeirenEmoteController`. The application does not upload your files.
+All local media and user settings are stored under `%LOCALAPPDATA%\SeirenEmoteController`. The application does not upload your files.
 
 ---
 ## Why this project?
@@ -134,7 +134,9 @@ The goal was to create a **simple, standalone controller** for the
 
 ## Build from source — ONLY FOR DEVELOPERS
 
-**End users: do not run these commands.** Install the ready-to-use Windows application from the [Download](#download) section instead.\n\nThe steps below are only for developers running or modifying the source code. Requires **Python 3.11+**.
+**End users: do not run these commands.** Install the ready-to-use Windows application from the [Download](#download) section instead.
+
+The steps below are only for developers running or modifying the source code. Requires **Python 3.11+**.
 
 ```powershell
 py -m pip install -r requirements.txt
