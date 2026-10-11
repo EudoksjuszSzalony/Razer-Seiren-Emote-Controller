@@ -124,7 +124,7 @@ class App:
                   bg=SURFACE, fg=FG).pack(side='left', padx=(0, 7))
         tk.Button(library_actions, text='Import Streamer Companion', command=self.import_emotes,
                   bg=SURFACE, fg=FG).pack(side='left', padx=(0, 7))
-        tk.Button(library_actions, text='Refresh library', command=self.refresh_library,
+        tk.Button(library_actions, text='Refresh icons', command=self.refresh_library,
                   bg=SURFACE, fg=FG).pack(side='left')
 
         controls = tk.Frame(self.root, bg=BG, padx=14, pady=5)
@@ -241,10 +241,14 @@ class App:
                      fg=FG, bg=BG, justify='left', pady=35).grid(row=0, column=0, sticky='w')
             return
         for i, file in enumerate(filtered):
-            with Image.open(file) as im:
-                frames = getattr(im, 'n_frames', 1)
-                im.seek(min(frames - 1, 1 if frames > 1 else 0))
-                img = im.convert('RGBA').resize((72, 72), Image.Resampling.NEAREST)
+            try:
+                with Image.open(file) as im:
+                    frames = getattr(im, 'n_frames', 1)
+                    im.seek(min(frames - 1, 1 if frames > 1 else 0))
+                    img = im.convert('RGBA').resize((72, 72), Image.Resampling.NEAREST)
+            except (OSError, ValueError):
+                # Files can change while being copied into the watched directory.
+                continue
             photo = ImageTk.PhotoImage(img, master=self.root)
             self.image_refs.append(photo)
             cell = tk.Frame(self.gridframe, bg=SURFACE, padx=5, pady=6)
@@ -845,7 +849,7 @@ class App:
             return
         target = EMOTES_DIR / Path(last).name
         if not target.is_file():
-            self.status.set('Last emote is not installed. Use Import Emotes or choose another.')
+            self.status.set('Last emote is not installed. Import from Streamer Companion or choose another.')
             return
         if not self.select(target, silent=True):
             self.status.set(f'Could not restore {target.name}. Check the microphone connection.')

@@ -64,7 +64,7 @@ Download the latest Windows installer above. No Python or OpenRGB is required. L
 - Click **Import Streamer Companion** to import again or choose a custom cache folder.
 - Click **Add PNG/GIF** to copy your own images into the library (no Explorer navigation required).
 - Click **Open media folder** to open the library in Windows Explorer.
-- **Refresh library** only refreshes visible local media; it does not import from Streamer Companion.
+- **Refresh icons** only refreshes visible local media; it does not import from Streamer Companion.
 
 ### 4. Play
 Click an emote to play it. The gallery also checks file names, sizes and modification dates every **5 seconds**, refreshing only when files change (no continuous GIF decoding or busy polling).

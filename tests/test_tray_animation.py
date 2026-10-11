@@ -7,7 +7,7 @@ from unittest.mock import patch
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from windows_integration import Tray, emote_tray_image
+from windows_integration import Tray, emote_tray_image, autostart_enabled
 
 class DummyIcon:
     def __init__(self):
@@ -40,3 +40,16 @@ class TrayTests(unittest.TestCase):
             self.assertIsNot(tray.icon.icon, first)
         tray.restore_default_icon()
         self.assertEqual(tray.icon.icon.size, (64, 64))
+    def test_windows_autostart_uses_run_key_presence(self):
+        """Installer quoting need not equal subprocess.list2cmdline."""
+        import contextlib
+        import types
+        import sys as std_sys
+        registry = types.SimpleNamespace(
+            HKEY_CURRENT_USER=1,
+            OpenKey=lambda *_: contextlib.nullcontext(object()),
+            QueryValueEx=lambda *_: ('"C:\\\\Program Files\\\\SeirenEmoteController.exe" --tray', 1))
+        with patch('windows_integration.os', types.SimpleNamespace(name='nt')):
+            with patch.dict(std_sys.modules, {'winreg': registry}):
+                self.assertTrue(autostart_enabled())
+
