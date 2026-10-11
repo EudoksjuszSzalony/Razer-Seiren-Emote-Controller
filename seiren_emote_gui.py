@@ -77,9 +77,11 @@ class App:
         self.brightness_text = tk.StringVar()
         self.speed_text = tk.StringVar()
         self.status = tk.StringVar(value='Ready. Select an emote or import your local library.')
+        self.connection_text = tk.StringVar(value='● Disconnected')
         self.preview_photo = None
         self._build_ui()
         self._update_controls()
+        self._update_connection_indicator()
         self.root.protocol('WM_DELETE_WINDOW', self.hide)
         self.render_grid()
         tray_ready = True
@@ -129,6 +131,9 @@ class App:
                   bg='#843a3a', fg=FG).pack(side='left', padx=(7, 0))
         tk.Button(top, text='Display Orientation', command=self.calibrate, bg=SURFACE,
                   fg=FG).pack(side='right', padx=(5, 0))
+        self.connection_label = tk.Label(top, textvariable=self.connection_text,
+                                         fg='#d9ae65', bg=BG, font=('Segoe UI', 10, 'bold'))
+        self.connection_label.pack(side='right', padx=(5, 8))
 
         library_actions = tk.Frame(self.root, bg=BG, padx=14, pady=5)
         library_actions.pack(fill='x')
@@ -287,16 +292,24 @@ class App:
                      fg=GREEN if frames > 1 else '#8a9891', bg=SURFACE,
                      font=('Segoe UI', 8)).pack()
 
+    def _update_connection_indicator(self):
+        """Show the app's active backend handle, without extra USB polling."""
+        connected = self.device is not None
+        self.connection_text.set('● Connected' if connected else '● Disconnected')
+        self.connection_label.configure(fg=GREEN if connected else '#d9ae65')
+
     def connect(self, *, silent=False):
         if self.device:
             return True
         try:
             self.device, self.rgb_cls, self.client = bridge.connect_backend(self.backend.get())
             self._persist()
+            self._update_connection_indicator()
             self.status.set(f'Connected: {self.backend.get().upper()} • Other Chroma devices remain in Synapse.')
             return True
         except Exception as exc:
-            self.device = self.client = None
+            self.device = self.client = self.rgb_cls = None
+            self._update_connection_indicator()
             self.status.set('Could not connect to Seiren Emote: ' + str(exc))
             if not silent:
                 messagebox.showerror('Seiren Emote', str(exc) + '\n\nClose OpenRGB before using Direct HID on this microphone.')
@@ -315,6 +328,7 @@ class App:
             except Exception:
                 pass
         self.client = self.device = self.rgb_cls = None
+        self._update_connection_indicator()
 
     def select(self, file: Path, *, silent=False):
         if not file.is_file() or not self.connect(silent=silent):

@@ -66,7 +66,7 @@ Download the **Windows installer** at the top of this page and run it. **Python 
 
 **Application window · emote library**
 
-Browse and search your emotes; adjust brightness or playback speed, filter animated images, and manage PNG/GIF files without leaving the program.
+Browse and search your emotes; adjust brightness or playback speed, filter animated images, and manage PNG/GIF files without leaving the program. The small **Connected / Disconnected** indicator beside **Display Orientation** shows whether the app currently has an open connection to the microphone, without additional USB polling.
 
 [![Seiren Emote Controller application window with emote thumbnails and controls](docs/screenshots/main-window.webp)](docs/screenshots/main-window.webp)
 
