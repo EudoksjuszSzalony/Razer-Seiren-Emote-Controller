@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 import queue
@@ -59,6 +60,11 @@ class App:
         self.files = self._all_emote_files()
         self._media_snapshot = media_signature(EMOTES_DIR)
         self._import_busy = False
+        self._usb_probe_inflight = False
+        self._usb_connect_inflight = False
+        self._usb_generation = 0
+        self._reconnect_target = None
+        self._next_usb_connect = 0.0
         self.developer_tools_visible = False
         self.client = self.device = self.rgb_cls = None
         self.scheduled = self.save_after = self.resize_after = None
@@ -95,6 +101,7 @@ class App:
         self.closing = False
         self.queue_after = self.root.after(100, self._check_queue)
         self.media_scan_after = self.root.after(5000, self._poll_media_directory)
+        self.usb_watch_after = self.root.after(1200, self._poll_usb_presence)
         if tray_only and tray_ready:
             self.root.withdraw()
         else:
@@ -318,6 +325,9 @@ class App:
     def _backend_changed(self, _event=None):
         self.stop()
         self._disconnect()
+        self._usb_generation += 1
+        self._usb_connect_inflight = False
+        self._reconnect_target = None
         self._persist()
         self.status.set('Backend switched to ' + self.backend.get() + '; select an emote.')
 
@@ -331,7 +341,13 @@ class App:
         self._update_connection_indicator()
 
     def select(self, file: Path, *, silent=False):
-        if not file.is_file() or not self.connect(silent=silent):
+        if not file.is_file():
+            return False
+        if not self.connect(silent=silent):
+            if self.backend.get() == 'hid':
+                self._reconnect_target = file
+                self.config['last_emote'] = file.name
+                self._persist()
             return False
         self.stop()
         try:
@@ -344,6 +360,7 @@ class App:
         if not self.current_frames:
             return False
         self.current_file = file
+        self._reconnect_target = None
         self.frame_index, self.last_values = 0, None
         self.config['last_emote'] = file.name
         self._persist()
@@ -363,8 +380,11 @@ class App:
                 self.device.set_colors([self.rgb_cls(*rgb) for rgb in values], fast=True)
                 self.last_values = values
         except Exception as exc:
+            if self.backend.get() == 'hid' and self.current_file:
+                self._reconnect_target = self.current_file
             self.stop()
-            self.status.set('Frame transfer failed: ' + str(exc))
+            self.status.set('Frame transfer failed: ' + str(exc) +
+                            '. Waiting for microphone reconnect.')
             self._disconnect()
             return
         image = frame.resize((80, 80), Image.Resampling.NEAREST)
@@ -390,6 +410,92 @@ class App:
                 self.tray.restore_default_icon()
             except Exception:
                 pass
+
+
+    def _poll_usb_presence(self):
+        """Async HID enumeration detects unplug, including static frames."""
+        if getattr(self, 'closing', False):
+            return
+        if self.backend.get() == 'hid' and not self._usb_probe_inflight:
+            self._usb_probe_inflight = True
+            def probe():
+                try:
+                    import hid
+                    from seiren_hid import VID, PID, USAGE_PAGE, USAGE
+                    found = any(d.get('usage_page') == USAGE_PAGE and
+                                d.get('usage') == USAGE
+                                for d in hid.enumerate(VID, PID))
+                    self.queue.put(('usb_presence', found))
+                except Exception:
+                    self.queue.put(('usb_presence', None))
+            threading.Thread(target=probe, daemon=True, name='SeirenUSBPresence').start()
+        self.usb_watch_after = self.root.after(2000, self._poll_usb_presence)
+
+    def _on_usb_presence(self, present):
+        self._usb_probe_inflight = False
+        if getattr(self, 'closing', False) or self.backend.get() != 'hid' or present is None:
+            return
+        if not present:
+            if self.device is not None:
+                if self.current_file is not None:
+                    self._reconnect_target = self.current_file
+                self.stop()
+                self._disconnect()
+                self.status.set('Microphone unplugged. Waiting for USB reconnect...')
+            if self._usb_connect_inflight:
+                self._usb_generation += 1
+                self._usb_connect_inflight = False
+            return
+        if self.device is not None or self._usb_connect_inflight:
+            return
+        if time.monotonic() < self._next_usb_connect:
+            return
+        self._usb_connect_inflight = True
+        self._usb_generation += 1
+        generation = self._usb_generation
+        self._next_usb_connect = time.monotonic() + 3.0
+
+        def reconnect():
+            try:
+                result = bridge.connect_backend('hid')
+                failure = None
+            except Exception as exc:
+                result, failure = None, str(exc)
+            self.queue.put(('usb_reconnect', generation, result, failure))
+        threading.Thread(target=reconnect, daemon=True, name='SeirenUSBReconnect').start()
+
+    def _on_usb_reconnect(self, generation, result, failure):
+        """Attach background-opened HID handle only on Tk thread."""
+        invalid = (getattr(self, 'closing', False) or
+                   self.backend.get() != 'hid' or
+                   generation != self._usb_generation or
+                   self.device is not None)
+        if invalid:
+            if result is not None:
+                try:
+                    result[2].disconnect()
+                except Exception:
+                    pass
+            return
+        self._usb_connect_inflight = False
+        if failure is not None:
+            self.status.set('Microphone detected; reconnecting when ready...')
+            return
+        self.device, self.rgb_cls, self.client = result
+        self._update_connection_indicator()
+        target = self._reconnect_target
+        if target is None:
+            saved = self.config.get('last_emote')
+            if isinstance(saved, str) and saved.strip():
+                candidate = EMOTES_DIR / Path(saved).name
+                if candidate.is_file():
+                    target = candidate
+        self._reconnect_target = None
+        if target is not None and target.is_file():
+            if not self.select(target, silent=True):
+                self.status.set('Microphone connected; unable to resume ' + target.name)
+        else:
+            self.status.set('Microphone connected. Select an emote.')
 
     def refresh_library(self):
         """Refresh directory view; never reimport assets."""
@@ -899,6 +1005,10 @@ class App:
                 cmd = self.queue.get_nowait()
                 if isinstance(cmd, tuple) and cmd[0] == 'import_finished':
                     self._on_import_finished(*cmd[1:])
+                elif isinstance(cmd, tuple) and cmd[0] == 'usb_presence':
+                    self._on_usb_presence(*cmd[1:])
+                elif isinstance(cmd, tuple) and cmd[0] == 'usb_reconnect':
+                    self._on_usb_reconnect(*cmd[1:])
                 elif cmd == 'open':
                     self.show()
                 elif cmd == 'toggle_autostart':
@@ -946,6 +1056,13 @@ class App:
 
     def exit(self):
         self.closing = True
+        self._usb_generation += 1
+        if getattr(self, 'usb_watch_after', None) is not None:
+            try:
+                self.root.after_cancel(self.usb_watch_after)
+            except tk.TclError:
+                pass
+            self.usb_watch_after = None
         if getattr(self, 'media_scan_after', None) is not None:
             try:
                 self.root.after_cancel(self.media_scan_after)

@@ -87,6 +87,8 @@ If the pattern on the physical microphone does not match the preview, select **D
 ### 5. Play
 Select any emote in the library to show it on the microphone. The app restores your last played emote when you launch it again.
 
+**USB reconnect:** Disconnecting the microphone changes the status to **Disconnected**. After replugging it, the app automatically reopens the HID interface and resumes your last selected emote, including static frames, without pressing Connect or selecting the animation again. Presence checks run in the background approximately every two seconds.
+
 ### System tray · quick settings
 The system tray icon keeps the controller accessible when its window is hidden. Right-click it to open the settings menu:
 
