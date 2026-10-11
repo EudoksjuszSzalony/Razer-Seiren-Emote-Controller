@@ -6,16 +6,47 @@ handled only by Tk's event loop.
 from __future__ import annotations
 
 import os
+import sys
+import ctypes
 from pathlib import Path
 import queue
 import subprocess
-import sys
 import threading
 import time
 from typing import Callable
 
 AUTOSTART_KEY = r'Software\Microsoft\Windows\CurrentVersion\Run'
 AUTOSTART_NAME = 'SeirenEmoteController'
+# Keep identity stable across releases. Windows uses it to associate the
+# taskbar button with our product rather than a generic python.exe process.
+APP_USER_MODEL_ID = 'SeirenEmoteController.App'
+
+
+def configure_windows_app_identity():
+    """Must run before creating the first Tk window on Windows."""
+    if sys.platform != 'win32':
+        return
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+    except (AttributeError, OSError):
+        # May be absent on restricted Windows environments.
+        pass
+
+
+def apply_window_icon(root):
+    """Use the same static art as Tray, for title bar + Windows taskbar.
+
+    iconphoto(default=True) also applies to subsequently created Toplevels.
+    Retain Tk image references so garbage collection cannot remove the icon.
+    """
+    from PIL import Image, ImageTk
+    original = tray_image()
+    root._seiren_window_icons = [
+        ImageTk.PhotoImage(original.resize((size, size), Image.Resampling.NEAREST), master=root)
+        for size in (64, 48, 32, 16)
+    ]
+    root.iconphoto(True, *root._seiren_window_icons)
+
 
 
 def launch_command() -> str:

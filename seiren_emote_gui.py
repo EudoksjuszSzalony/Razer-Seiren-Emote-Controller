@@ -22,7 +22,8 @@ from PIL import Image, ImageTk
 import seiren_emote_bridge as bridge
 from emote_importer import APP_DIR, EMOTES_DIR, import_from_cache
 from media_library import import_user_media, media_signature
-from windows_integration import Tray, autostart_enabled, set_autostart
+from windows_integration import (Tray, autostart_enabled, set_autostart,
+                                 configure_windows_app_identity, apply_window_icon)
 from pixel_mapping import (DEFAULT_PROBE_POINTS, EXTRA_PROBE_POINTS, infer_orientation)
 
 BG = '#181b1e'
@@ -46,7 +47,9 @@ def diagonal_arrow_image() -> Image.Image:
 
 class App:
     def __init__(self, *, tray_only: bool = False):
+        configure_windows_app_identity()
         self.root = tk.Tk()
+        apply_window_icon(self.root)
         self.root.title('Seiren Emote Controller v1.0.1')
         self.root.geometry('1110x790')
         self.root.minsize(760, 540)
@@ -56,6 +59,7 @@ class App:
         self.files = self._all_emote_files()
         self._media_snapshot = media_signature(EMOTES_DIR)
         self._import_busy = False
+        self.developer_tools_visible = False
         self.client = self.device = self.rgb_cls = None
         self.scheduled = self.save_after = self.resize_after = None
         self.current_frames, self.current_file = [], None
@@ -108,11 +112,21 @@ class App:
         top.pack(fill='x')
         tk.Label(top, text='SEIREN EMOTE CONTROLLER', fg=GREEN, bg=BG,
                  font=('Segoe UI', 16, 'bold')).pack(side='left')
-        tk.Button(top, text='Connect', command=self.connect, bg='#336b24', fg='white', padx=12).pack(side='right', padx=(7, 0))
-        backend_box = ttk.Combobox(top, textvariable=self.backend, values=['hid', 'openrgb'], state='readonly', width=8)
-        backend_box.pack(side='right', padx=(6, 0))
+        self.developer_button = tk.Button(top, text='Developer Tools ▾',
+                                         command=self._toggle_developer_tools,
+                                         bg=SURFACE, fg=FG)
+        self.developer_button.pack(side='right', padx=(7, 0))
+        # Packed only on demand; avoids exposing diagnostic actions to new users.
+        self.developer_controls = tk.Frame(top, bg=BG)
+        tk.Button(self.developer_controls, text='Connect', command=self.connect,
+                  bg='#336b24', fg='white', padx=12).pack(side='left', padx=(7, 0))
+        tk.Label(self.developer_controls, text='Backend', bg=BG, fg=FG).pack(side='left', padx=(8, 3))
+        backend_box = ttk.Combobox(self.developer_controls, textvariable=self.backend,
+                                   values=['hid', 'openrgb'], state='readonly', width=8)
+        backend_box.pack(side='left')
         backend_box.bind('<<ComboboxSelected>>', self._backend_changed)
-        tk.Label(top, text='Backend', bg=BG, fg=FG).pack(side='right', padx=(6, 0))
+        tk.Button(self.developer_controls, text='Stop', command=self.stop,
+                  bg='#843a3a', fg=FG).pack(side='left', padx=(7, 0))
         tk.Button(top, text='Display Orientation', command=self.calibrate, bg=SURFACE,
                   fg=FG).pack(side='right', padx=(5, 0))
 
@@ -147,7 +161,6 @@ class App:
                  bg=BG, fg=FG, highlightthickness=0, showvalue=False).pack(side='left')
         tk.Label(controls, textvariable=self.speed_text, fg=GREEN, bg=BG,
                  width=6, anchor='w').pack(side='left')
-        tk.Button(controls, text='Stop', command=self.stop, bg='#843a3a', fg=FG).pack(side='right')
 
         self.count_label = tk.Label(self.root, text='', anchor='w', padx=14, bg=BG, fg='#aebbae')
         self.count_label.pack(fill='x')
@@ -170,6 +183,16 @@ class App:
         self.preview.pack(side='left', padx=(0, 12))
         tk.Label(foot, textvariable=self.status, anchor='w', justify='left', fg=FG,
                  bg=BG, wraplength=760).pack(side='left', fill='x', expand=True)
+
+    def _toggle_developer_tools(self):
+        """Reveal diagnostics on demand; independent of emote playback."""
+        self.developer_tools_visible = not self.developer_tools_visible
+        if self.developer_tools_visible:
+            self.developer_controls.pack(side='right')
+            self.developer_button.configure(text='Developer Tools ▴')
+        else:
+            self.developer_controls.pack_forget()
+            self.developer_button.configure(text='Developer Tools ▾')
 
     def _filter_changed(self):
         self.config['animated_only'] = bool(self.only_animated.get())

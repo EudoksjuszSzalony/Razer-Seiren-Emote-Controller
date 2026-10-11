@@ -57,64 +57,55 @@ It lets you:
 ## Quick Start
 
 ### 1. Prepare Streamer Companion (recommended)
-If you want the original Razer 8×8 emotes, install **Razer Streamer Companion** and run it at least once to populate its local cache. Seiren Emote Controller can read compatible cached emotes without redistributing Razer assets. The importer is best-effort and depends on the local cache format; you may always use your own PNG/GIF files instead.
+To use the original Razer 8×8 emotes, install **Razer Streamer Companion** and run it at least once so its local cache is populated. Seiren Emote Controller can import compatible cached animations, without redistributing proprietary assets. You can also use your own PNG/GIF images instead.
 
 ### 2. Install and launch
-Download the latest Windows installer above. No Python or OpenRGB is required. Launch **Seiren Emote Controller** from Start or tray. There is **no need to click Connect** in normal use — selecting or restoring an emote connects automatically. Connect is still available for manual troubleshooting.
+Download the **Windows installer** at the top of this page and run it. **Python and OpenRGB are not required.** Start Seiren Emote Controller from the Start Menu or system tray.
 
-### 3. Get media into your library
-- On a fresh empty installation the app **attempts one automatic local Streamer Companion import**, asynchronously, without delaying startup.
-- Click **Import Streamer Companion** to import again or choose a custom cache folder.
-- Click **Add PNG/GIF** to copy your own images into the library (no Explorer navigation required).
-- Click **Open media folder** to open the library in Windows Explorer.
-- **Refresh icons** only refreshes visible local media; it does not import from Streamer Companion.
+**No need to press Connect** in normal use: selecting or restoring an emote connects automatically. The manual connection control lives under **Developer Tools**.
 
-### 4. Play
-Click an emote to play it. The gallery also checks file names, sizes and modification dates every **5 seconds**, refreshing only when files change (no continuous GIF decoding or busy polling).
+**Application window · emote library**
 
-## Tray menu and settings
+Browse and search your emotes; adjust brightness or playback speed, filter animated images, and manage PNG/GIF files without leaving the program.
 
-Right-click the notification-area (system tray) icon to access these settings. A **checkmark means enabled**:
+[![Seiren Emote Controller application window with emote thumbnails and controls](docs/screenshots/main-window.webp)](docs/screenshots/main-window.webp)
 
-| Option | Description | Default |
-| --- | --- | --- |
-| Autostart | Start the app when you sign in to Windows | Set by installer or tray |
-| Clear display on exit | Send an all-black frame when fully exiting, not when hiding to tray | Off |
-| Animated tray | Show a live 8×8 preview of the selected emote instead of the default static icon | Off |
+### 3. Get emotes into your library
+- On a fresh, empty installation, the app tries to import the **local Streamer Companion cache** automatically in the background.
+- **Import Streamer Companion** lets you retry that operation or select a custom cache directory.
+- **Add PNG/GIF** copies your own images into the library.
+- **Open media folder** opens the library in Windows Explorer.
+- **Refresh icons** only refreshes the local gallery; it does not reimport assets.
 
-Animated tray updates are throttled to a maximum of **5 FPS** to reduce Windows Explorer/notification-area work. It does not send additional USB HID commands and is independent of microphone playback. Settings persist across launches.
+New or removed media files are detected automatically about every **5 seconds**, using lightweight file metadata checks.
 
-All local media and user settings are stored under `%LOCALAPPDATA%\SeirenEmoteController`. The application does not upload your files anywhere.
+### 4. Optional: Set display orientation
+If the pattern on the physical microphone does not match the preview, select **Display Orientation**, choose the correct rotation/mirror setting and click **Apply**. You generally only need to calibrate once.
 
----
- 
-## Screenshots
+[![Display Orientation settings and LED direction preview](docs/screenshots/orientation.png)](docs/screenshots/orientation.png)
 
-### Application window · emote library
-
-Browse the 8×8 GIF/PNG collection, search by name, switch animations instantly, and adjust **brightness**, **speed**, and **display orientation**. Import from Streamer Companion or add your own images without leaving the application.
-
-<p align="center">
-  <a href="docs/screenshots/main-window.webp"><img src="docs/screenshots/main-window.webp" alt="Seiren Emote Controller main window showing emote thumbnails, import buttons and playback controls" width="100%"></a>
-</p>
+### 5. Play
+Select any emote in the library to show it on the microphone. The app restores your last played emote when you launch it again.
 
 ### System tray · quick settings
+The system tray icon keeps the controller accessible when its window is hidden. Right-click it to open the settings menu:
 
-The right-click menu provides three persistent, checkable options: **Autostart**, **Clear display on exit**, and **Animated tray** (a live preview of the current emote). A checkmark means the option is enabled.
+[![Windows system tray menu showing all three checked settings](docs/screenshots/tray-menu.webp)](docs/screenshots/tray-menu.webp)
 
-<p align="center">
-  <a href="docs/screenshots/tray-menu.webp"><img src="docs/screenshots/tray-menu.webp" alt="Windows notification area menu with Autostart, Clear display on exit, and Animated tray checked" width="202"></a>
-</p>
+A **checkmark means enabled**:
 
-<details>
-<summary><strong>Repository badge preview</strong> · release statistics and Windows installer download</summary>
+| Option | What it does | Default |
+| --- | --- | --- |
+| **Autostart** | Launch the app automatically when you sign in to Windows | Set by the installer or Tray |
+| **Clear display on exit** | Clear the microphone matrix when fully exiting, but not when merely hiding the window | Off |
+| **Animated tray** | Show a live preview of the playing 8×8 emote rather than the static app icon | Off |
 
-The README header uses repository-hosted copies of the official Shields.io badges. The real counters and release version are updated automatically.
+The optional animated Tray refreshes at **up to 5 FPS**, without issuing extra USB commands. These settings persist across restarts. There is no separate tray tooltip setting.
 
-<p align="center">
-  <a href="docs/screenshots/readme-header-badges.webp"><img src="docs/screenshots/readme-header-badges.webp" alt="GitHub README showing release and download badges and the Windows installer download button" width="841"></a>
-</p>
-</details>
+### Developer Tools (optional)
+Click **Developer Tools** in the main window to reveal **Backend**, **Connect**, and **Stop** for manual troubleshooting. The controls are hidden by default so everyday playback remains simple; no manual connection is required.
+
+All local media and user settings are stored under `%LOCALAPPDATA%\\SeirenEmoteController`. The application does not upload your files.
 
 ---
 ## Why this project?
@@ -141,9 +132,9 @@ The goal was to create a **simple, standalone controller** for the
 
 ---
 
-## Build from source
+## Build from source — ONLY FOR DEVELOPERS
 
-Requires **Python 3.11+** (only for running from source, not for the Windows installer).
+**End users: do not run these commands.** Install the ready-to-use Windows application from the [Download](#download) section instead.\n\nThe steps below are only for developers running or modifying the source code. Requires **Python 3.11+**.
 
 ```powershell
 py -m pip install -r requirements.txt
