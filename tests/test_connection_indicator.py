@@ -69,4 +69,4 @@ class ConnectionIndicatorTests(unittest.TestCase):
         App._disconnect(app)
         self.assertIsNone(app.device)
         app.connection_text.set.assert_called_with('● Disconnected')
-        app.client is None
+        self.assertIsNone(app.client)
