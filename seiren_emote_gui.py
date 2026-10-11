@@ -56,7 +56,8 @@ class App:
         self.image_refs = []
         self.grid_columns = 0
         self.queue = queue.Queue()
-        self.tray = Tray(self.queue, clear_exit_enabled=lambda: bool(self.config.get('clear_on_exit', False)))
+        self.tray = Tray(self.queue, clear_exit_enabled=lambda: bool(self.config.get('clear_on_exit', False)),
+                         animated_enabled=lambda: bool(self.config.get('animated_tray', False)))
         self.search = tk.StringVar()
         self.only_animated = tk.BooleanVar(value=self.config.get('animated_only', False))
         self.brightness = tk.DoubleVar(value=self.config['brightness'])
@@ -310,6 +311,11 @@ class App:
         image = frame.resize((80, 80), Image.Resampling.NEAREST)
         self.preview_photo = ImageTk.PhotoImage(image, master=self.root)
         self.preview.configure(image=self.preview_photo)
+        if self.config.get('animated_tray', False):
+            try:
+                self.tray.publish_frame(frame)
+            except Exception:
+                pass  # A tray icon error must never interrupt HID playback.
         self.frame_index = (self.frame_index + 1) % len(self.current_frames)
         delay = max(50, round(duration * 1000 / max(0.25, self.speed.get())))
         self.scheduled = self.root.after(delay, self.advance_frame)
@@ -320,6 +326,11 @@ class App:
             self.scheduled = None
         self.current_file = None
         self.current_frames = []
+        if self.config.get('animated_tray', False):
+            try:
+                self.tray.restore_default_icon()
+            except Exception:
+                pass
 
     def import_emotes(self):
         try:
@@ -781,6 +792,20 @@ class App:
                     self._persist()
                     self.tray.refresh()
                     self.status.set('Clear display on exit: ' + ('enabled' if self.config['clear_on_exit'] else 'disabled'))
+                elif cmd == 'toggle_animated_tray':
+                    active = not bool(self.config.get('animated_tray', False))
+                    self.config['animated_tray'] = active
+                    self._persist()
+                    self.tray.refresh()
+                    try:
+                        if active and self.current_frames:
+                            index = (self.frame_index - 1) % len(self.current_frames)
+                            self.tray.publish_frame(self.current_frames[index][0], force=True)
+                        else:
+                            self.tray.restore_default_icon()
+                    except Exception:
+                        pass
+                    self.status.set('Animated tray: ' + ('enabled' if active else 'disabled'))
                 elif cmd == 'exit':
                     self.exit()
                     return

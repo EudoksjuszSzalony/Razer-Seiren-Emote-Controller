@@ -20,6 +20,8 @@ class Version037ConfigTests(unittest.TestCase):
                 self.assertEqual(cfg['snake'], False)
                 self.assertEqual(cfg['animated_only'], False)
                 self.assertEqual(cfg['clear_on_exit'], False)
+                self.assertEqual(cfg['animated_tray'], False)
+                self.assertEqual(cfg['streamer_import_attempted'], False)
                 cfg['animated_only'] = True
                 cfg['clear_on_exit'] = True
                 bridge.save_config(cfg)
