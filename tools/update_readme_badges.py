@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from html import escape
 import json
+import math
 import os
 from pathlib import Path
 import urllib.request
@@ -55,12 +56,16 @@ def release_stats() -> tuple[str, int]:
 
 
 def badge(left: str, right: str, color: str) -> str:
-    """Self-contained flat-square SVG with the familiar two-panel badge look."""
-    left_width = max(55, int(len(left) * 7.1 + 20))
-    right_width = max(38, int(len(right) * 7.1 + 20))
+    """Balanced two-panel SVG with natural (never stretched) text rendering.
+
+    No textLength/lengthAdjust: scaling glyphs was distorting numbers and labels.
+    Both parts inherit the same font, weight, size and baseline.
+    """
+    # Generous padding allows different systems' fonts to render naturally,
+    # without forcing glyphs to fit an artificial text length.
+    left_width = max(58, math.ceil(len(left) * 7.2 + 28))
+    right_width = max(48, math.ceil(len(right) * 7.2 + 28))
     width = left_width + right_width
-    # textLength ensures browser font differences do not crop text.
-    left_len, right_len = left_width - 20, right_width - 20
     left_s, right_s = escape(left), escape(right)
     title = escape(f"{left}: {right}")
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="24" viewBox="0 0 {width} 24" role="img" aria-label="{title}">
@@ -68,8 +73,8 @@ def badge(left: str, right: str, color: str) -> str:
 <rect width="{width}" height="24" rx="4" fill="#32383e"/>
 <path d="M{left_width},0 H{width - 4} Q{width},0 {width},4 V20 Q{width},24 {width - 4},24 H{left_width} Z" fill="{color}"/>
 <g fill="#fff" font-family="Verdana, DejaVu Sans, Arial, sans-serif" font-size="11" font-weight="600" text-anchor="middle">
-<text x="{left_width / 2:g}" y="16" textLength="{left_len}" lengthAdjust="spacingAndGlyphs">{left_s}</text>
-<text x="{left_width + right_width / 2:g}" y="16" textLength="{right_len}" lengthAdjust="spacingAndGlyphs">{right_s}</text>
+<text x="{left_width / 2:g}" y="16">{left_s}</text>
+<text x="{left_width + right_width / 2:g}" y="16">{right_s}</text>
 </g></svg>
 """
 
@@ -81,11 +86,11 @@ def generate(version: str, downloads: int, out: Path = BASE) -> None:
     definitions = {
         "downloads.svg": ("downloads", f"{downloads:,}", "#15803d"),
         "release.svg": ("latest release", version, "#2563eb"),
-        "python.svg": ("Python", "not required", "#16a34a"),
-        "platform.svg": ("platform", "Windows", "#0078d4"),
+        "python.svg": ("python", "not required", "#16a34a"),
+        "platform.svg": ("platform", "windows", "#0078d4"),
         "license.svg": ("license", "GPL-3.0", "#16a34a"),
         "status.svg": ("status", "stable", "#16a34a"),
-        "download-windows.svg": ("Download", "Windows Installer", "#16a34a"),
+        "download-windows.svg": ("download", "windows installer", "#16a34a"),
     }
     for name, (left, right, color) in definitions.items():
         path = out / name

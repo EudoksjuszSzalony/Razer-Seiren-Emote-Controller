@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="167" height="24" viewBox="0 0 167 24" role="img" aria-label="Python: not required">
-<title>Python: not required</title>
-<rect width="167" height="24" rx="4" fill="#32383e"/>
-<path d="M62,0 H163 Q167,0 167,4 V20 Q167,24 163,24 H62 Z" fill="#16a34a"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="187" height="24" viewBox="0 0 187 24" role="img" aria-label="python: not required">
+<title>python: not required</title>
+<rect width="187" height="24" rx="4" fill="#32383e"/>
+<path d="M72,0 H183 Q187,0 187,4 V20 Q187,24 183,24 H72 Z" fill="#16a34a"/>
 <g fill="#fff" font-family="Verdana, DejaVu Sans, Arial, sans-serif" font-size="11" font-weight="600" text-anchor="middle">
-<text x="31" y="16" textLength="42" lengthAdjust="spacingAndGlyphs">Python</text>
-<text x="114.5" y="16" textLength="85" lengthAdjust="spacingAndGlyphs">not required</text>
+<text x="36" y="16">python</text>
+<text x="129.5" y="16">not required</text>
 </g></svg>

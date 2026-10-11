@@ -20,10 +20,19 @@ class BadgeTests(unittest.TestCase):
                 doc = ET.parse(asset)
                 self.assertTrue(doc.getroot().tag.endswith("svg"))
                 self.assertNotIn("shields.io", asset.read_text())
+                # Fixed-width SVG textLength previously distorted label and digit shapes.
+                self.assertNotIn("textLength=", asset.read_text())
+                self.assertNotIn("lengthAdjust=", asset.read_text())
+                self.assertEqual(len(doc.findall(".//{http://www.w3.org/2000/svg}text")), 2)
+                self.assertEqual(len(doc.findall(".//{http://www.w3.org/2000/svg}g")), 1)
             downloads = (path / "downloads.svg").read_text()
             self.assertIn("12", downloads)
             self.assertIn("downloads", downloads)
             self.assertIn("v1.0.1", (path / "release.svg").read_text())
+            # Both columns inherit identical typography; labels use lowercase.
+            self.assertIn(">python</text>", (path / "python.svg").read_text())
+            self.assertIn(">windows</text>", (path / "platform.svg").read_text())
+            self.assertIn(">windows installer</text>", (path / "download-windows.svg").read_text())
 
     def test_release_stats_counts_published_assets(self):
         releases = [
