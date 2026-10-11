@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seiren Emote Controller v1.0.1 GUI + direct USB HID + Windows tray.
+"""Seiren Emote Controller v1.1.0 GUI + direct USB HID + Windows tray.
 
 Copyright in program code: GPL-3.0. Original Razer images are not bundled.
 """
@@ -51,7 +51,7 @@ class App:
         configure_windows_app_identity()
         self.root = tk.Tk()
         apply_window_icon(self.root)
-        self.root.title('Seiren Emote Controller v1.0.1')
+        self.root.title('Seiren Emote Controller v1.1.0')
         self.root.geometry('1110x790')
         self.root.minsize(760, 540)
         self.root.configure(bg=BG)

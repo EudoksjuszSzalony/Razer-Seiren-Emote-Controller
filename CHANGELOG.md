@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.0 — 2026-10-12 (animated tray and media workflow)
+
+- Optional live **Animated tray** icon mirroring the current 8×8 GIF/PNG frame, with a 5 FPS cap and persistent preference. Original static tray icon remains the default.
+- Consistent checkbox-style system tray options for Autostart, Clear display on exit and Animated tray. Fixed autostart detection when installer registry quoting differs.
+- **Developer Tools** panel for diagnostic Backend, Connect and Stop commands; passive Connected/Disconnected status indicator on the main toolbar.
+- Automatically detect native Seiren Emote HID unplug/replug and reconnect, then resume the last selected GIF or still image. USB enumeration and reconnect attempts happen off the Tk UI thread; feature tested on a physical microphone.
+- Add PNG/GIF, Open media folder, Import Streamer Companion, and Refresh icons buttons. Best-effort first-run import from local Streamer Companion cache runs in background; lightweight metadata polling refreshes external media file changes every five seconds.
+- Unified Windows EXE, window, taskbar and static tray icon assets, with explicit Windows AppUserModelID.
+- Expanded Quick Start, optional display orientation guide, tray settings and developer-only build instructions. Modern screenshots and locally mirrored Shields.io SVG badges updated through GitHub Actions.
+- Preserves v1.0.1 **5 ms HID pacing** and the four-row+Apply transport, with no extra black frames or HID command queue.
+
+
 ## v1.0.1 — 2026-10-11 (HID frame reliability fix)
 
 - Increase the native Seiren Emote HID report pacing from 1 ms to **5 ms** by default. Testing on a physical microphone eliminated partial-color artifacts and intermittent frozen frames seen with animated `F_white` and rapid emote switching.
