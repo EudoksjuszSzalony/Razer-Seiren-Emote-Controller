@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="144" height="24" viewBox="0 0 144 24" role="img" aria-label="status: stable">
-<title>status: stable</title>
-<rect width="144" height="24" rx="4" fill="#32383e"/>
-<path d="M72,0 H140 Q144,0 144,4 V20 Q144,24 140,24 H72 Z" fill="#16a34a"/>
-<g fill="#fff" font-family="Verdana, DejaVu Sans, Arial, sans-serif" font-size="11" font-weight="600" text-anchor="middle">
-<text x="36" y="16">status</text>
-<text x="108" y="16">stable</text>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="86" height="20" role="img" aria-label="status: stable"><title>status: stable</title><g shape-rendering="crispEdges"><rect width="43" height="20" fill="#555"/><rect x="43" width="43" height="20" fill="#4b0"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110"><text x="225" y="140" textLength="330" transform="scale(.1)">status</text><text x="635" y="140" textLength="330" transform="scale(.1)">stable</text></g></svg>

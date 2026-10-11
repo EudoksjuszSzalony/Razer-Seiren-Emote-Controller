@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="158" height="24" viewBox="0 0 158 24" role="img" aria-label="license: GPL-3.0">
-<title>license: GPL-3.0</title>
-<rect width="158" height="24" rx="4" fill="#32383e"/>
-<path d="M79,0 H154 Q158,0 158,4 V20 Q158,24 154,24 H79 Z" fill="#16a34a"/>
-<g fill="#fff" font-family="Verdana, DejaVu Sans, Arial, sans-serif" font-size="11" font-weight="600" text-anchor="middle">
-<text x="39.5" y="16">license</text>
-<text x="118.5" y="16">GPL-3.0</text>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="102" height="20" role="img" aria-label="license: GPL-3.0"><title>license: GPL-3.0</title><g shape-rendering="crispEdges"><rect width="47" height="20" fill="#555"/><rect x="47" width="55" height="20" fill="#4b0"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110"><text x="245" y="140" textLength="370" transform="scale(.1)">license</text><text x="735" y="140" textLength="450" transform="scale(.1)">GPL-3.0</text></g></svg>
