@@ -60,7 +60,7 @@ It lets you:
 To use the original Razer 8×8 emotes, install **Razer Streamer Companion** and run it at least once so its local cache is populated. Seiren Emote Controller can import compatible cached animations, without redistributing proprietary assets. You can also use your own PNG/GIF images instead.
 
 ### 2. Install and launch
-Download the **Windows installer** at the top of this page and run it. **Python and OpenRGB are not required.** Start Seiren Emote Controller from the Start Menu or system tray.
+Download the **Windows installer** at the top of this page and run it. **Python and OpenRGB are not required.** The installer offers a **desktop shortcut with the Seiren Emote Controller icon** (enabled by default; you can deselect it), alongside the Start Menu shortcut. Start the app from the Desktop, Start Menu, or system tray.
 
 **No need to press Connect** in normal use: selecting or restoring an emote connects automatically. The manual connection control lives under **Developer Tools**.
 
