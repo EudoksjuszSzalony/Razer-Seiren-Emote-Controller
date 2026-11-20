@@ -25,11 +25,16 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 DisableProgramGroupPage=yes
 [Tasks]
 Name: "autostart"; Description: "Start automatically when I sign in"; GroupDescription: "Additional options:"; Flags: unchecked
+; Enabled by default; users may deselect it during installation.
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional options:"
 [Files]
 Source: "..\dist\SeirenEmoteController\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autoprograms}\{#MyAppName} (Tray)"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--tray"
+; Point directly to the signed/unsigned packaged EXE: the same static ICO
+; is already embedded by PyInstaller and used by the Start Menu shortcuts.
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch Seiren Emote Controller"; Flags: nowait postinstall skipifsilent
 
